@@ -15,13 +15,13 @@ RETURNS TABLE (
   snippet TEXT,
   url TEXT,
   metadata JSONB,
-  relevance_score REAL
+  relevance_score double precision
 )
 LANGUAGE plpgsql
 AS $$
 BEGIN
   RETURN QUERY
-  (
+  WITH search_results AS (
     -- Search in contacts with full-text search and trigram similarity
     SELECT
       contacts.id,
@@ -29,7 +29,7 @@ BEGIN
       COALESCE(contacts.first_name || ' ' || contacts.last_name, '') as title,
       COALESCE(contacts.title, '') as subtitle,
       COALESCE(contacts.background, '') as snippet,
-      '/contacts/' || contacts.id::TEXT as url,
+      '/contacts/' || contacts.id::TEXT || '/show' as url,
       jsonb_build_object(
         'email', (
           SELECT string_agg(email_item->>'email', ', ')
@@ -44,7 +44,7 @@ BEGIN
       ) as metadata,
       -- Calculate relevance score based on full-text search rank and trigram similarity
       (
-        ts_rank(
+        COALESCE(ts_rank(
           to_tsvector('english',
             COALESCE(contacts.first_name, '') || ' ' ||
             COALESCE(contacts.last_name, '') || ' ' ||
@@ -52,11 +52,11 @@ BEGIN
             COALESCE(contacts.background, '')
           ),
           plainto_tsquery('english', search_query)
-        ) * 0.7 +
-        similarity(
+        ), 0) * 0.7 +
+        COALESCE(similarity(
           COALESCE(contacts.first_name, '') || ' ' || COALESCE(contacts.last_name, ''),
           search_query
-        ) * 0.3
+        ), 0) * 0.3
       ) as relevance_score
     FROM contacts
     LEFT JOIN companies ON contacts.company_id = companies.id
@@ -87,7 +87,7 @@ BEGIN
       'Note from ' || COALESCE(contacts.first_name || ' ' || contacts.last_name, 'Unknown Contact') as title,
       TO_CHAR("contactNotes".date, 'MMM DD, YYYY') as subtitle,
       LEFT("contactNotes".text, 200) as snippet,
-      '/contacts/' || contacts.id::TEXT as url,
+      '/contacts/' || contacts.id::TEXT || '/show' as url,
       jsonb_build_object(
         'contact_name', COALESCE(contacts.first_name || ' ' || contacts.last_name, ''),
         'contact_id', contacts.id,
@@ -96,11 +96,11 @@ BEGIN
       ) as metadata,
       -- Calculate relevance score for notes
       (
-        ts_rank(
+        COALESCE(ts_rank(
           to_tsvector('english', COALESCE("contactNotes".text, '')),
           plainto_tsquery('english', search_query)
-        ) * 0.8 +
-        similarity(COALESCE("contactNotes".text, ''), search_query) * 0.2
+        ), 0) * 0.8 +
+        COALESCE(similarity(COALESCE("contactNotes".text, ''), search_query), 0) * 0.2
       ) as relevance_score
     FROM "contactNotes"
     LEFT JOIN contacts ON "contactNotes".contact_id = contacts.id
@@ -120,7 +120,7 @@ BEGIN
       companies.name as title,
       COALESCE(companies.sector, '') as subtitle,
       COALESCE(companies.description, companies.website, '') as snippet,
-      '/companies/' || companies.id::TEXT as url,
+      '/companies/' || companies.id::TEXT || '/show' as url,
       jsonb_build_object(
         'sector', companies.sector,
         'website', companies.website,
@@ -133,7 +133,7 @@ BEGIN
       ) as metadata,
       -- Calculate relevance score for companies
       (
-        ts_rank(
+        COALESCE(ts_rank(
           to_tsvector('english',
             COALESCE(companies.name, '') || ' ' ||
             COALESCE(companies.description, '') || ' ' ||
@@ -141,8 +141,8 @@ BEGIN
             COALESCE(companies.sector, '')
           ),
           plainto_tsquery('english', search_query)
-        ) * 0.7 +
-        similarity(COALESCE(companies.name, ''), search_query) * 0.3
+        ), 0) * 0.7 +
+        COALESCE(similarity(COALESCE(companies.name, ''), search_query), 0) * 0.3
       ) as relevance_score
     FROM companies
     WHERE
@@ -157,17 +157,18 @@ BEGIN
       OR
       LOWER(COALESCE(companies.name, '')) LIKE '%' || LOWER(search_query) || '%'
   )
+  SELECT * FROM search_results
   ORDER BY
     -- Order by relevance score (highest first)
-    8 DESC,
+    search_results.relevance_score DESC,
     -- Then by entity type priority
-    CASE 2
+    CASE search_results.entity_type
       WHEN 'contact' THEN 1
       WHEN 'note' THEN 2
       WHEN 'company' THEN 3
     END,
     -- Finally by ID for consistent ordering
-    1
+    search_results.id
   LIMIT result_limit
   OFFSET result_offset;
 END;

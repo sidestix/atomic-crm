@@ -218,6 +218,41 @@ const dataProviderWithCustomMethods = {
   async isInitialized() {
     return getIsInitialized();
   },
+  async globalSearch({ query, page = 1, limit = 10 }: { query: string; page?: number; limit?: number }) {
+    const offset = (page - 1) * limit;
+    
+    // Call the optimized global search function in the database
+    const { data, error } = await supabase.rpc('global_search_optimized', {
+      search_query: query,
+      result_limit: limit,
+      result_offset: offset
+    });
+
+    if (error) {
+      console.error('Global search error:', error);
+      throw new Error('Search failed');
+    }
+
+    // Transform the results to match our SearchResult interface
+    const transformedResults = data.map((result: any) => ({
+      id: result.id.toString(),
+      type: result.entity_type,
+      title: result.title,
+      subtitle: result.subtitle,
+      snippet: result.snippet,
+      url: result.url,
+      metadata: result.metadata
+    }));
+
+    // Check if there are more results
+    const hasMore = data.length === limit;
+
+    return {
+      data: transformedResults,
+      hasMore,
+      total: transformedResults.length
+    };
+  },
 } satisfies DataProvider;
 
 export type CrmDataProvider = typeof dataProviderWithCustomMethods;

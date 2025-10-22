@@ -93,6 +93,9 @@ export const ContactAside = ({ link = "edit" }: { link?: "edit" | "show" }) => {
           })
           .filter(Boolean)}
       </AsideSection>
+
+      <AddressInfo record={record} />
+
       <AsideSection title="Background info">
         <WithRecord<Contact>
           render={(record) =>
@@ -140,6 +143,22 @@ export const ContactAside = ({ link = "edit" }: { link?: "edit" | "show" }) => {
         <AddTask />
       </AsideSection>
     </div>
+  );
+};
+
+const AddressInfo = ({ record }: { record: Contact }) => {
+  if (!record.address && !record.city && !record.zipcode && !record.stateAbbr) {
+    return null;
+  }
+
+  return (
+    <AsideSection title="Main Address" noGap>
+      <TextField source="address" />
+      <TextField source="city" />
+      <TextField source="zipcode" />
+      <TextField source="stateAbbr" />
+      <TextField source="country" />
+    </AsideSection>
   );
 };
 

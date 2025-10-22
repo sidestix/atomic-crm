@@ -5,6 +5,8 @@ import {
 } from "@/components/admin";
 import { Card, CardContent } from "@/components/ui/card";
 import { ShowBase, useShowContext } from "ra-core";
+import { useEffect, useState, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { CompanyAvatar } from "../companies/CompanyAvatar";
 import { NoteCreate, NotesIterator } from "../notes";
 import type { Contact } from "../types";
@@ -19,6 +21,40 @@ export const ContactShow = () => (
 
 const ContactShowContent = () => {
   const { record, isPending } = useShowContext<Contact>();
+  const [searchParams] = useSearchParams();
+  const noteId = searchParams.get('note');
+  const [highlightedNote, setHighlightedNote] = useState<string | null>(null);
+  const hasExecuted = useRef(false);
+  
+  // Handle scroll to note when noteId changes
+  useEffect(() => {
+    if (noteId && !hasExecuted.current) {
+      hasExecuted.current = true;
+      const tryScroll = (attempts = 0) => {
+        const element = document.getElementById(`note-${noteId}`);
+        console.log(`Attempt ${attempts + 1}: Looking for note-${noteId}`, element);
+        
+        if (element) {
+          console.log('Found element, scrolling...');
+          setHighlightedNote(noteId);
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          
+          // Remove highlight after fade completes
+          setTimeout(() => setHighlightedNote(null), 1000);
+          return;
+        } else if (attempts < 20) {
+          // Retry every 100ms for up to 2 seconds
+          setTimeout(() => tryScroll(attempts + 1), 100);
+        } else {
+          console.log('Failed to find element after 20 attempts');
+        }
+      };
+      
+      // Start with a delay to let the page settle
+      setTimeout(() => tryScroll(), 100);
+    }
+  }, [noteId]);
+
   if (isPending || !record) return null;
 
   return (
@@ -62,11 +98,12 @@ const ContactShowContent = () => {
               target="contact_id"
               reference="contactNotes"
               sort={{ field: "date", order: "DESC" }}
+              perPage={1000}
               empty={
                 <NoteCreate reference="contacts" showStatus className="mt-4" />
               }
             >
-              <NotesIterator reference="contacts" showStatus />
+              <NotesIterator reference="contacts" showStatus highlightedNote={highlightedNote} />
             </ReferenceManyField>
           </CardContent>
         </Card>

@@ -36,6 +36,7 @@ export const ContactInputs = () => {
         />
         <div className="flex flex-col gap-10 flex-1">
           <ContactPersonalInformationInputs />
+          <ContactAddressInputs />
           <ContactMiscInputs />
         </div>
       </div>
@@ -176,6 +177,19 @@ const ContactPersonalInformationInputs = () => {
 };
 
 const personalInfoTypes = [{ id: "Work" }, { id: "Home" }, { id: "Other" }];
+
+const ContactAddressInputs = () => {
+  return (
+    <div className="flex flex-col gap-4">
+      <h6 className="text-lg font-semibold">Address</h6>
+      <TextInput source="address" helperText={false} />
+      <TextInput source="city" helperText={false} />
+      <TextInput source="zipcode" helperText={false} />
+      <TextInput source="stateAbbr" helperText={false} />
+      <TextInput source="country" helperText={false} />
+    </div>
+  );
+};
 
 const ContactMiscInputs = () => {
   return (

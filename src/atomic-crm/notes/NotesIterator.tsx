@@ -8,9 +8,11 @@ import { NoteCreate } from "./NoteCreate";
 export const NotesIterator = ({
   reference,
   showStatus,
+  highlightedNote,
 }: {
   reference: "contacts" | "deals";
   showStatus?: boolean;
+  highlightedNote?: string | null;
 }) => {
   const { data, error, isPending } = useListContext();
   if (isPending || error) return null;
@@ -26,6 +28,8 @@ export const NotesIterator = ({
                 isLast={index === data.length - 1}
                 key={index}
                 showStatus={showStatus}
+                id={note.id?.toString()}
+                highlightedNote={highlightedNote}
               />
               {index < data.length - 1 && <Separator />}
             </React.Fragment>

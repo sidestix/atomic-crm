@@ -97,6 +97,11 @@ export type Contact = {
   status: string;
   background: string;
   phone_jsonb: PhoneNumberAndType[];
+  address?: string;
+  city?: string;
+  zipcode?: string;
+  stateAbbr?: string;
+  country?: string;
   nb_tasks?: number;
   company_name?: string;
 } & Pick<RaRecord, "id">;

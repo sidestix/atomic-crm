@@ -15,6 +15,11 @@ export type ContactImportSchema = {
   phone_work: string;
   phone_home: string;
   phone_other: string;
+  address: string;
+  city: string;
+  zipcode: string;
+  stateAbbr: string;
+  country: string;
   background: string;
   avatar: string;
   first_seen: string;
@@ -96,6 +101,11 @@ export function useContactImport() {
             phone_work,
             phone_home,
             phone_other,
+            address,
+            city,
+            zipcode,
+            stateAbbr,
+            country,
             background,
             first_seen,
             last_seen,
@@ -130,6 +140,11 @@ export function useContactImport() {
                 title,
                 email_jsonb,
                 phone_jsonb,
+                address,
+                city,
+                zipcode,
+                stateAbbr,
+                country,
                 background,
                 first_seen: first_seen
                   ? new Date(first_seen).toISOString()

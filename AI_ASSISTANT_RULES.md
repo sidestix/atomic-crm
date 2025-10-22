@@ -2,6 +2,14 @@
 
 ## Core Principles
 
+## Code Modification Protocol
+- **NEVER modify any code files without explicit user permission**
+- **ALWAYS present proposed changes first** with clear before/after examples
+- **ALWAYS explain the reasoning** behind each proposed change
+- **ALWAYS wait for explicit approval** before using any file modification tools
+- **If in doubt, ask permission** - it's better to ask than to assume
+- **Present changes in this format**: Current → Proposed → Reasoning → Expected Result
+
 ### 1. Code Writing Permission
 - **NEVER write any code without explicit confirmation from the user**
 - Each request for code changes requires fresh permission

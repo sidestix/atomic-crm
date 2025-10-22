@@ -18,6 +18,7 @@ export * from "./create";
 export * from "./data-table";
 export * from "./date-field";
 export * from "./delete-button";
+export * from "./delete-button-with-confirmation";
 export * from "./edit-button";
 export * from "./edit-guesser";
 export * from "./edit";

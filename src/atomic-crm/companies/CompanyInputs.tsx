@@ -1,5 +1,4 @@
 import {
-  ReferenceInput,
   TextInput,
   SelectInput,
   ArrayInput,
@@ -11,7 +10,7 @@ import { required, useRecordContext } from "ra-core";
 import ImageEditorField from "../misc/ImageEditorField";
 import { isLinkedinUrl } from "../misc/isLinkedInUrl";
 import { useConfigurationContext } from "../root/ConfigurationContext";
-import type { Company, Sale } from "../types";
+import type { Company } from "../types";
 import { sizes } from "./sizes";
 
 const isUrl = (url: string) => {
@@ -39,7 +38,6 @@ export const CompanyInputs = () => {
         <div className="flex flex-col gap-8 flex-1">
           <CompanyAddressInputs />
           <CompanyAdditionalInformationInputs />
-          <CompanyAccountManagerInput />
         </div>
       </div>
     </div>
@@ -135,27 +133,3 @@ const CompanyAdditionalInformationInputs = () => {
     </div>
   );
 };
-
-const CompanyAccountManagerInput = () => {
-  return (
-    <div className="flex flex-col gap-4">
-      <h6 className="text-lg font-semibold">Account manager</h6>
-      <ReferenceInput
-        source="sales_id"
-        reference="sales"
-        filter={{
-          "disabled@neq": true,
-        }}
-      >
-        <SelectInput
-          label="Account manager"
-          helperText={false}
-          optionText={saleOptionRenderer}
-        />
-      </ReferenceInput>
-    </div>
-  );
-};
-
-const saleOptionRenderer = (choice: Sale) =>
-  `${choice.first_name} ${choice.last_name}`;

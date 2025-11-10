@@ -16,7 +16,6 @@ import {
 import { SimpleFormIterator } from "@/components/admin";
 import { isLinkedinUrl } from "../misc/isLinkedInUrl";
 import { useConfigurationContext } from "../root/ConfigurationContext";
-import type { Sale } from "../types";
 import { Avatar } from "./Avatar";
 import { AutocompleteCompanyInput } from "@/atomic-crm/companies/AutocompleteCompanyInput.tsx";
 import { countries } from "./countries";
@@ -211,24 +210,6 @@ const ContactMiscInputs = () => {
         helperText={false}
       />
       <BooleanInput source="has_newsletter" helperText={false} />
-      <ReferenceInput
-        reference="sales"
-        source="sales_id"
-        sort={{ field: "last_name", order: "ASC" }}
-        filter={{
-          "disabled@neq": true,
-        }}
-      >
-        <SelectInput
-          helperText={false}
-          label="Account manager"
-          optionText={saleOptionRenderer}
-          validate={required()}
-        />
-      </ReferenceInput>
     </div>
   );
 };
-
-const saleOptionRenderer = (choice: Sale) =>
-  `${choice.first_name} ${choice.last_name}`;

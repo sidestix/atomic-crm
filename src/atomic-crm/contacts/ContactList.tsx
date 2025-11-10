@@ -103,6 +103,11 @@ const exporter: Exporter<Contact> = async (records, fetchRelatedRecords) => {
         ?.number,
       phone_jsonb: JSON.stringify(contact.phone_jsonb),
       phone_fts: undefined,
+      address: contact.address || "",
+      city: contact.city || "",
+      zipcode: contact.zipcode || "",
+      stateAbbr: contact.stateAbbr || "",
+      country: contact.country || "",
     };
     delete exportedContact.email_fts;
     delete exportedContact.phone_fts;

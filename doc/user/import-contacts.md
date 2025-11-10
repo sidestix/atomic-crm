@@ -11,9 +11,9 @@ Atomic CRM displays an import contact buttons in the initial user onboarding pag
 An example of the expected CSV file is available in the contact import modal:
 
 ```csv
-first_name,last_name,gender,title,background,first_seen,last_seen,has_newsletter,status,tags,linkedin_url,company,email_work,email_home,email_other,phone_work,phone_home,phone_other
-John,Doe,male,Sales Executive,,2024-07-01T00:00:00+00:00,2024-07-01T11:54:49.95+00:00,false,in-contract,"influencer, developer",https://www.linkedin.com/in/johndoe,Acme,john@doe.example,john.doe@gmail.com,jdoe@caramail.com,659-980-2015,740.645.3807,(446) 758-2122
-Jane,Doe,female,Designer,,2024-07-01T00:00:00+00:00,2024-07-01T11:54:49.95+00:00,false,in-contract,"UI, design",https://www.linkedin.com/in/janedoe,Acme,,,jane@doe.example,659-980-2020,740.647.3802,
+first_name,last_name,gender,title,background,first_seen,last_seen,has_newsletter,status,tags,linkedin_url,company,email_work,email_home,email_other,phone_work,phone_home,phone_other,address,city,zipcode,stateAbbr,country
+John,Doe,male,Sales Executive,,2024-07-01T00:00:00+00:00,2024-07-01T11:54:49.95+00:00,false,in-contract,"influencer, developer",https://www.linkedin.com/in/johndoe,Acme,john@doe.example,john.doe@gmail.com,jdoe@caramail.com,659-980-2015,740.645.3807,(446) 758-2122,"123 Main St",New York,10001,NY,USA
+Jane,Doe,female,Designer,,2024-07-01T00:00:00+00:00,2024-07-01T11:54:49.95+00:00,false,in-contract,"UI, design",https://www.linkedin.com/in/janedoe,Acme,,,jane@doe.example,659-980-2020,740.647.3802,"456 Oak Ave",San Francisco,94102,CA,USA
 ```
 
 When importing contacts, companies and tags will be automatically matched if they exist on the system, or imported otherwise.

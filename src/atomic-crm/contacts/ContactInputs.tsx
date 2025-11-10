@@ -11,6 +11,7 @@ import {
   RadioButtonGroupInput,
   SelectInput,
   ArrayInput,
+  AutocompleteInput,
 } from "@/components/admin";
 import { SimpleFormIterator } from "@/components/admin";
 import { isLinkedinUrl } from "../misc/isLinkedInUrl";
@@ -18,6 +19,7 @@ import { useConfigurationContext } from "../root/ConfigurationContext";
 import type { Sale } from "../types";
 import { Avatar } from "./Avatar";
 import { AutocompleteCompanyInput } from "@/atomic-crm/companies/AutocompleteCompanyInput.tsx";
+import { countries } from "./countries";
 
 export const ContactInputs = () => {
   const isMobile = useIsMobile();
@@ -186,7 +188,14 @@ const ContactAddressInputs = () => {
       <TextInput source="city" helperText={false} />
       <TextInput source="zipcode" helperText={false} />
       <TextInput source="stateAbbr" helperText={false} />
-      <TextInput source="country" helperText={false} />
+      <AutocompleteInput
+        source="country"
+        choices={countries}
+        optionText="name"
+        optionValue="name"
+        placeholder="Search countries..."
+        helperText={false}
+      />
     </div>
   );
 };

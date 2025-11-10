@@ -140,11 +140,11 @@ export function useContactImport() {
                 title,
                 email_jsonb,
                 phone_jsonb,
-                address,
-                city,
-                zipcode,
-                stateAbbr,
-                country,
+                address: address || null,
+                city: city || null,
+                zipcode: zipcode || null,
+                stateAbbr: stateAbbr || null,
+                country: country || null,
                 background,
                 first_seen: first_seen
                   ? new Date(first_seen).toISOString()

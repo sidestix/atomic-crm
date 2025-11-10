@@ -8,7 +8,6 @@ import { Separator } from "@/components/ui/separator";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { required, useRecordContext } from "ra-core";
 import ImageEditorField from "../misc/ImageEditorField";
-import { isLinkedinUrl } from "../misc/isLinkedInUrl";
 import { useConfigurationContext } from "../root/ConfigurationContext";
 import type { Company } from "../types";
 import { sizes } from "./sizes";
@@ -72,11 +71,6 @@ const CompanyContactInputs = () => {
     <div className="flex flex-col gap-4">
       <h6 className="text-lg font-semibold">Contact</h6>
       <TextInput source="website" helperText={false} validate={isUrl} />
-      <TextInput
-        source="linkedin_url"
-        helperText={false}
-        validate={isLinkedinUrl}
-      />
       <TextInput source="phone_number" helperText={false} />
     </div>
   );

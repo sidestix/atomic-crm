@@ -20,14 +20,11 @@ export type ContactImportSchema = {
   zipcode: string;
   stateAbbr: string;
   country: string;
-  background: string;
   avatar: string;
   first_seen: string;
   last_seen: string;
-  has_newsletter: string;
   status: string;
   tags: string;
-  linkedin_url: string;
 };
 
 export function useContactImport() {
@@ -106,14 +103,11 @@ export function useContactImport() {
             zipcode,
             stateAbbr,
             country,
-            background,
             first_seen,
             last_seen,
-            has_newsletter,
             status,
             company: companyName,
             tags: tagNames,
-            linkedin_url,
           }) => {
             const email_jsonb = [
               { email: email_work, type: "Work" },
@@ -145,19 +139,16 @@ export function useContactImport() {
                 zipcode: zipcode || null,
                 stateAbbr: stateAbbr || null,
                 country: country || null,
-                background,
                 first_seen: first_seen
                   ? new Date(first_seen).toISOString()
                   : today,
                 last_seen: last_seen
                   ? new Date(last_seen).toISOString()
                   : today,
-                has_newsletter,
                 status,
                 company_id: company?.id,
                 tags: tagList.map((tag) => tag.id),
                 sales_id: user?.identity?.id,
-                linkedin_url,
               },
             });
           },

@@ -5,7 +5,6 @@ import * as React from "react";
 import { useFormContext } from "react-hook-form";
 
 import {
-  BooleanInput,
   ReferenceInput,
   TextInput,
   RadioButtonGroupInput,
@@ -14,7 +13,6 @@ import {
   AutocompleteInput,
 } from "@/components/admin";
 import { SimpleFormIterator } from "@/components/admin";
-import { isLinkedinUrl } from "../misc/isLinkedInUrl";
 import { useConfigurationContext } from "../root/ConfigurationContext";
 import { Avatar } from "./Avatar";
 import { AutocompleteCompanyInput } from "@/atomic-crm/companies/AutocompleteCompanyInput.tsx";
@@ -38,7 +36,6 @@ export const ContactInputs = () => {
         <div className="flex flex-col gap-10 flex-1">
           <ContactPersonalInformationInputs />
           <ContactAddressInputs />
-          <ContactMiscInputs />
         </div>
       </div>
     </div>
@@ -51,7 +48,7 @@ const ContactIdentityInputs = () => {
     <div className="flex flex-col gap-4">
       <h6 className="text-lg font-semibold">Identity</h6>
       <RadioButtonGroupInput
-        label={false}
+        label="Pronouns"
         row
         source="gender"
         choices={contactGender}
@@ -167,12 +164,6 @@ const ContactPersonalInformationInputs = () => {
           />
         </SimpleFormIterator>
       </ArrayInput>
-      <TextInput
-        source="linkedin_url"
-        label="Linkedin URL"
-        helperText={false}
-        validate={isLinkedinUrl}
-      />
     </div>
   );
 };
@@ -199,17 +190,3 @@ const ContactAddressInputs = () => {
   );
 };
 
-const ContactMiscInputs = () => {
-  return (
-    <div className="flex flex-col gap-4">
-      <h6 className="text-lg font-semibold">Misc</h6>
-      <TextInput
-        source="background"
-        label="Background info (bio, how you met, etc)"
-        multiline
-        helperText={false}
-      />
-      <BooleanInput source="has_newsletter" helperText={false} />
-    </div>
-  );
-};

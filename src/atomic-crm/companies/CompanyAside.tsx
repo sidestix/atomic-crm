@@ -1,4 +1,4 @@
-import { Globe, Linkedin, Phone } from "lucide-react";
+import { Globe, Phone } from "lucide-react";
 import { useRecordContext } from "ra-core";
 import {
   EditButton,
@@ -45,7 +45,7 @@ export const CompanyAside = ({ link = "edit" }: CompanyAsideProps) => {
 };
 
 const CompanyInfo = ({ record }: { record: Company }) => {
-  if (!record.website && !record.linkedin_url && !record.phone_number) {
+  if (!record.website && !record.phone_number) {
     return null;
   }
 
@@ -62,20 +62,6 @@ const CompanyInfo = ({ record }: { record: Company }) => {
               .replace("http://", "")
               .replace("https://", "")}
           />
-        </div>
-      )}
-      {record.linkedin_url && (
-        <div className="flex flex-row items-center gap-1 min-h-[24px]">
-          <Linkedin className="w-4 h-4" />
-          <a
-            className="underline hover:no-underline"
-            href={record.linkedin_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={record.linkedin_url}
-          >
-            LinkedIn
-          </a>
         </div>
       )}
       {record.phone_number && (

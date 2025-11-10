@@ -1,4 +1,4 @@
-import { Linkedin, Mail, Phone } from "lucide-react";
+import { Mail, Phone } from "lucide-react";
 import { useRecordContext, WithRecord } from "ra-core";
 import { AddTask } from "../tasks/AddTask";
 import { TasksIterator } from "../tasks/TasksIterator";
@@ -7,7 +7,6 @@ import { TagsListEdit } from "./TagsListEdit";
 import {
   ArrayField,
   EditButton,
-  ReferenceField,
   ReferenceManyField,
   ShowButton,
   SingleFieldList,
@@ -18,7 +17,6 @@ import {
 import type { ReactNode } from "react";
 import { AsideSection } from "../misc/AsideSection";
 import { useConfigurationContext } from "../root/ConfigurationContext";
-import { SaleName } from "../sales/SaleName";
 import type { Contact } from "../types";
 
 export const ContactAside = ({ link = "edit" }: { link?: "edit" | "show" }) => {
@@ -45,28 +43,6 @@ export const ContactAside = ({ link = "edit" }: { link?: "edit" | "show" }) => {
           </SingleFieldList>
         </ArrayField>
 
-        {record.has_newsletter && (
-          <p className="pl-6 text-sm text-muted-foreground">
-            Subscribed to newsletter
-          </p>
-        )}
-
-        {record.linkedin_url && (
-          <PersonalInfoRow
-            icon={<Linkedin className="w-4 h-4 text-muted-foreground" />}
-            primary={
-              <a
-                className="underline hover:no-underline text-sm text-muted-foreground"
-                href={record.linkedin_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={record.linkedin_url}
-              >
-                LinkedIn
-              </a>
-            }
-          />
-        )}
         <ArrayField source="phone_jsonb">
           <SingleFieldList className="flex-col">
             <PersonalInfoRow
@@ -96,14 +72,7 @@ export const ContactAside = ({ link = "edit" }: { link?: "edit" | "show" }) => {
 
       <AddressInfo record={record} />
 
-      <AsideSection title="Background info">
-        <WithRecord<Contact>
-          render={(record) =>
-            record?.background ? (
-              <TextField source="background" record={record} className="pb-2" />
-            ) : null
-          }
-        />
+      <AsideSection title="Activity">
         <div className="text-muted-foreground">
           <span className="text-sm">Added on</span>{" "}
           <DateField
@@ -118,13 +87,6 @@ export const ContactAside = ({ link = "edit" }: { link?: "edit" | "show" }) => {
             source="last_seen"
             options={{ year: "numeric", month: "long", day: "numeric" }}
           />
-        </div>
-
-        <div className="inline-flex text-muted-foreground">
-          Followed by&nbsp;
-          <ReferenceField source="sales_id" reference="sales">
-            <SaleName />
-          </ReferenceField>
         </div>
       </AsideSection>
 

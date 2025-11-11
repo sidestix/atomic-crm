@@ -5,7 +5,6 @@ import * as React from "react";
 import { useFormContext } from "react-hook-form";
 
 import {
-  ReferenceInput,
   TextInput,
   RadioButtonGroupInput,
   SelectInput,
@@ -15,8 +14,8 @@ import {
 import { SimpleFormIterator } from "@/components/admin";
 import { useConfigurationContext } from "../root/ConfigurationContext";
 import { Avatar } from "./Avatar";
-import { AutocompleteCompanyInput } from "@/atomic-crm/companies/AutocompleteCompanyInput.tsx";
 import { countries } from "./countries";
+import { RelatedContactsInput } from "./RelatedContactsInput";
 
 export const ContactInputs = () => {
   const isMobile = useIsMobile();
@@ -27,7 +26,6 @@ export const ContactInputs = () => {
       <div className={`flex gap-6 ${isMobile ? "flex-col" : "flex-row"}`}>
         <div className="flex flex-col gap-10 flex-1">
           <ContactIdentityInputs />
-          <ContactPositionInputs />
         </div>
         <Separator
           orientation={isMobile ? "horizontal" : "vertical"}
@@ -36,6 +34,7 @@ export const ContactInputs = () => {
         <div className="flex flex-col gap-10 flex-1">
           <ContactPersonalInformationInputs />
           <ContactAddressInputs />
+          <RelatedContactsInput />
         </div>
       </div>
     </div>
@@ -55,22 +54,9 @@ const ContactIdentityInputs = () => {
         helperText={false}
         optionText="label"
         optionValue="value"
-        defaultValue={contactGender[0].value}
       />
       <TextInput source="first_name" validate={required()} helperText={false} />
       <TextInput source="last_name" validate={required()} helperText={false} />
-    </div>
-  );
-};
-
-const ContactPositionInputs = () => {
-  return (
-    <div className="flex flex-col gap-4">
-      <h6 className="text-lg font-semibold">Position</h6>
-      <TextInput source="title" helperText={false} />
-      <ReferenceInput source="company_id" reference="companies">
-        <AutocompleteCompanyInput />
-      </ReferenceInput>
     </div>
   );
 };

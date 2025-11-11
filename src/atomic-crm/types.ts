@@ -83,8 +83,8 @@ export type PhoneNumberAndType = {
 export type Contact = {
   first_name: string;
   last_name: string;
-  title: string;
-  company_id: Identifier;
+  title?: string | null;
+  company_id?: Identifier | null;
   email_jsonb: EmailAndType[];
   avatar?: Partial<RAFile>;
   linkedin_url?: string | null;
@@ -104,6 +104,8 @@ export type Contact = {
   country?: string;
   nb_tasks?: number;
   company_name?: string;
+  related_contact_ids?: Identifier[];
+  manual_discount_ids?: Identifier[];
 } & Pick<RaRecord, "id">;
 
 export type ContactNote = {
@@ -118,7 +120,6 @@ export type ContactNote = {
 export type Deal = {
   name: string;
   company_id: Identifier;
-  contact_ids: Identifier[];
   category: string;
   stage: string;
   description: string;
@@ -143,6 +144,11 @@ export type DealNote = {
 } & Pick<RaRecord, "id">;
 
 export type Tag = {
+  name: string;
+  color: string;
+} & Pick<RaRecord, "id">;
+
+export type ManualDiscount = {
   name: string;
   color: string;
 } & Pick<RaRecord, "id">;
@@ -226,5 +232,5 @@ export interface NoteStatus {
 export interface ContactGender {
   value: string;
   label: string;
-  icon: ComponentType<{ className?: string }>;
+  icon?: ComponentType<{ className?: string }>;
 }

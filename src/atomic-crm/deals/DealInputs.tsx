@@ -1,6 +1,4 @@
 import {
-  AutocompleteArrayInput,
-  ReferenceArrayInput,
   ReferenceInput,
   TextInput,
   NumberInput,
@@ -9,7 +7,6 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { required } from "ra-core";
-import { contactOptionText } from "../misc/ContactOption";
 import { useConfigurationContext } from "../root/ConfigurationContext";
 import { AutocompleteCompanyInput } from "@/atomic-crm/companies/AutocompleteCompanyInput.tsx";
 
@@ -49,15 +46,6 @@ const DealLinkedToInputs = () => {
       <ReferenceInput source="company_id" reference="companies">
         <AutocompleteCompanyInput />
       </ReferenceInput>
-
-      <ReferenceArrayInput source="contact_ids" reference="contacts_summary">
-        <AutocompleteArrayInput
-          label="Contacts"
-          optionText={contactOptionText}
-          helperText={false}
-          validate={required()}
-        />
-      </ReferenceArrayInput>
     </div>
   );
 };

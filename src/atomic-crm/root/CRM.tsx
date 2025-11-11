@@ -157,6 +157,7 @@ export const CRM = ({
         <Resource name="tasks" />
         <Resource name="sales" {...sales} />
         <Resource name="tags" />
+        <Resource name="manual_discounts" />
       </Admin>
     </ConfigurationProvider>
   );

@@ -1,4 +1,3 @@
-import { HelpCircle, Mars, NonBinary, Venus } from "lucide-react";
 
 export const defaultDarkModeLogo = "./logos/logo_atomic_crm_dark.svg";
 export const defaultLightModeLogo = "./logos/logo_atomic_crm_light.svg";
@@ -58,8 +57,8 @@ export const defaultTaskTypes = [
 ];
 
 export const defaultContactGender = [
-  { value: "male", label: "He/Him", icon: Mars },
-  { value: "female", label: "She/Her", icon: Venus },
-  { value: "nonbinary", label: "They/Them", icon: NonBinary },
-  { value: "unknown", label: "Unknown", icon: HelpCircle },
+  { value: "male", label: "He/Him" },
+  { value: "female", label: "She/Her" },
+  { value: "nonbinary", label: "They/Them" },
+  { value: "unknown", label: "Unknown" },
 ];

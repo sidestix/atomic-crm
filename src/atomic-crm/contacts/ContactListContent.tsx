@@ -4,7 +4,6 @@ import { formatRelative } from "date-fns";
 import { RecordContextProvider, useListContext } from "ra-core";
 import { Link } from "react-router";
 
-import { ReferenceField, TextField } from "@/components/admin";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { MouseEvent } from "react";
 import { useCallback } from "react";
@@ -61,17 +60,6 @@ export const ContactListContent = () => {
                 {`${contact.first_name} ${contact.last_name ?? ""}`}
               </div>
               <div className="text-sm text-muted-foreground">
-                {contact.title}
-                {contact.title && contact.company_id != null && " at "}
-                {contact.company_id != null && (
-                  <ReferenceField
-                    source="company_id"
-                    reference="companies"
-                    link={false}
-                  >
-                    <TextField source="name" />
-                  </ReferenceField>
-                )}
                 {contact.nb_tasks
                   ? ` - ${contact.nb_tasks} task${
                       contact.nb_tasks > 1 ? "s" : ""

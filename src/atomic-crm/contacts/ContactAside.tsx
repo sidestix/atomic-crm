@@ -3,6 +3,7 @@ import { useRecordContext, WithRecord } from "ra-core";
 import { AddTask } from "../tasks/AddTask";
 import { TasksIterator } from "../tasks/TasksIterator";
 import { TagsListEdit } from "./TagsListEdit";
+import { ManualDiscountsListEdit } from "./ManualDiscountsListEdit";
 
 import {
   ArrayField,
@@ -18,6 +19,7 @@ import type { ReactNode } from "react";
 import { AsideSection } from "../misc/AsideSection";
 import { useConfigurationContext } from "../root/ConfigurationContext";
 import type { Contact } from "../types";
+import { RelatedContactsDisplay } from "./RelatedContactsDisplay";
 
 export const ContactAside = ({ link = "edit" }: { link?: "edit" | "show" }) => {
   const { contactGender } = useConfigurationContext();
@@ -58,10 +60,13 @@ export const ContactAside = ({ link = "edit" }: { link?: "edit" | "show" }) => {
               return (
                 <PersonalInfoRow
                   key={genderOption.value}
-                  icon={
-                    <genderOption.icon className="w-4 h-4 text-muted-foreground" />
+                  icon={null}
+                  primary={
+                    <span>
+                      <span className="text-muted-foreground">Pronouns: </span>
+                      {genderOption.label}
+                    </span>
                   }
-                  primary={<span>{genderOption.label}</span>}
                 />
               );
             }
@@ -90,8 +95,16 @@ export const ContactAside = ({ link = "edit" }: { link?: "edit" | "show" }) => {
         </div>
       </AsideSection>
 
-      <AsideSection title="Tags">
+      <AsideSection title="Related contacts">
+        <RelatedContactsDisplay />
+      </AsideSection>
+
+      <AsideSection title="Customer Type">
         <TagsListEdit />
+      </AsideSection>
+
+      <AsideSection title="Manual Discounts">
+        <ManualDiscountsListEdit />
       </AsideSection>
 
       <AsideSection title="Tasks">

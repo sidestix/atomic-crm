@@ -7,7 +7,7 @@ import { ContactInputs } from "./ContactInputs";
 import { FormToolbar } from "../layout/FormToolbar";
 
 export const ContactEdit = () => (
-  <EditBase redirect="show">
+  <EditBase redirect="show" mutationMode="pessimistic">
     <ContactEditContent />
   </EditBase>
 );

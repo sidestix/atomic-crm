@@ -1,17 +1,17 @@
 import { Badge } from "@/components/ui/badge";
 import { endOfYesterday, startOfMonth, startOfWeek, subMonths } from "date-fns";
-import { CheckSquare, Clock, Tag, TrendingUp, Users } from "lucide-react";
-import { FilterLiveForm, useGetIdentity, useGetList } from "ra-core";
+import { CheckSquare, Clock, Tag } from "lucide-react";
+import { FilterLiveForm, useGetList } from "ra-core";
 
 import { ToggleFilterButton, SearchInput } from "@/components/admin";
 import { FilterCategory } from "../filters/FilterCategory";
-import { Status } from "../misc/Status";
-import { useConfigurationContext } from "../root/ConfigurationContext";
 
 export const ContactListFilter = () => {
-  const { noteStatuses } = useConfigurationContext();
-  const { identity } = useGetIdentity();
-  const { data } = useGetList("tags", {
+  const { data: tagsData } = useGetList("tags", {
+    pagination: { page: 1, perPage: 10 },
+    sort: { field: "name", order: "ASC" },
+  });
+  const { data: manualDiscountsData } = useGetList("manual_discounts", {
     pagination: { page: 1, perPage: 10 },
     sort: { field: "name", order: "ASC" },
   });
@@ -19,7 +19,7 @@ export const ContactListFilter = () => {
   return (
     <div className="w-52 min-w-52 order-first pt-0.75 flex flex-col gap-4">
       <FilterLiveForm>
-        <SearchInput source="q" placeholder="Search name, company..." />
+        <SearchInput source="q" placeholder="Search name..." />
       </FilterLiveForm>
 
       <FilterCategory label="Last activity" icon={<Clock />}>
@@ -68,24 +68,9 @@ export const ContactListFilter = () => {
         />
       </FilterCategory>
 
-      <FilterCategory label="Status" icon={<TrendingUp />}>
-        {noteStatuses.map((status) => (
-          <ToggleFilterButton
-            key={status.value}
-            className="w-full justify-between"
-            label={
-              <span>
-                {status.label} <Status status={status.value} />
-              </span>
-            }
-            value={{ status: status.value }}
-          />
-        ))}
-      </FilterCategory>
-
-      <FilterCategory label="Tags" icon={<Tag />}>
-        {data &&
-          data.map((record) => (
+      <FilterCategory label="Customer Type" icon={<Tag />}>
+        {tagsData &&
+          tagsData.map((record) => (
             <ToggleFilterButton
               className="w-full justify-between"
               key={record.id}
@@ -105,22 +90,33 @@ export const ContactListFilter = () => {
           ))}
       </FilterCategory>
 
+      <FilterCategory label="Manual Discounts" icon={<Tag />}>
+        {manualDiscountsData &&
+          manualDiscountsData.map((record) => (
+            <ToggleFilterButton
+              className="w-full justify-between"
+              key={record.id}
+              label={
+                <Badge
+                  variant="secondary"
+                  className="text-black text-xs font-normal cursor-pointer"
+                  style={{
+                    backgroundColor: record?.color,
+                  }}
+                >
+                  {record?.name}
+                </Badge>
+              }
+              value={{ "manual_discount_ids@cs": `{${record.id}}` }}
+            />
+          ))}
+      </FilterCategory>
+
       <FilterCategory icon={<CheckSquare className="h-4 w-4" />} label="Tasks">
         <ToggleFilterButton
           className="w-full justify-between"
           label={"With pending tasks"}
           value={{ "nb_tasks@gt": 0 }}
-        />
-      </FilterCategory>
-
-      <FilterCategory
-        icon={<Users className="h-4 w-4" />}
-        label="Account Manager"
-      >
-        <ToggleFilterButton
-          className="w-full justify-between"
-          label={"Me"}
-          value={{ sales_id: identity?.id }}
         />
       </FilterCategory>
     </div>

@@ -24,6 +24,9 @@ import { getContactAvatar } from "../commons/getContactAvatar";
 import { getIsInitialized } from "./authProvider";
 import { supabase } from "./supabase";
 
+// Store previous related_contact_ids for bidirectional sync
+const previousRelatedContactIdsMap = new Map<Identifier, Identifier[]>();
+
 if (import.meta.env.VITE_SUPABASE_URL === undefined) {
   throw new Error("Please set the VITE_SUPABASE_URL environment variable");
 }
@@ -297,14 +300,70 @@ export const dataProvider = withLifecycleCallbacks(
         return processContactAvatar(params);
       },
       beforeUpdate: async (params) => {
-        return processContactAvatar(params);
+        const processedParams = await processContactAvatar(params);
+        // Store previous related_contact_ids for bidirectional sync
+        if (params.previousData?.id) {
+          const previousIds = (params.previousData.related_contact_ids as Identifier[]) || [];
+          previousRelatedContactIdsMap.set(params.previousData.id, previousIds);
+        }
+        return processedParams;
+      },
+      afterUpdate: async (result, dataProvider) => {
+        // Handle bidirectional sync for related_contact_ids
+        const currentContactId = result.data.id;
+        const newRelatedIds = (result.data.related_contact_ids as Identifier[]) || [];
+        const previousRelatedIds = previousRelatedContactIdsMap.get(currentContactId) || [];
+        
+        // Clean up the map
+        previousRelatedContactIdsMap.delete(currentContactId);
+        
+        // Find added and removed contact IDs
+        const addedIds = newRelatedIds.filter((id) => !previousRelatedIds.includes(id));
+        const removedIds = previousRelatedIds.filter((id) => !newRelatedIds.includes(id));
+        
+        // Update added contacts: add current contact to their related_contact_ids
+        for (const relatedId of addedIds) {
+          const { data: relatedContact } = await dataProvider.getOne<Contact>("contacts", {
+            id: relatedId,
+          });
+          if (relatedContact) {
+            const relatedContactIds = (relatedContact.related_contact_ids as Identifier[]) || [];
+            if (!relatedContactIds.includes(currentContactId)) {
+              await dataProvider.update("contacts", {
+                id: relatedId,
+                data: {
+                  related_contact_ids: [...relatedContactIds, currentContactId],
+                },
+                previousData: relatedContact,
+              });
+            }
+          }
+        }
+        
+        // Update removed contacts: remove current contact from their related_contact_ids
+        for (const relatedId of removedIds) {
+          const { data: relatedContact } = await dataProvider.getOne<Contact>("contacts", {
+            id: relatedId,
+          });
+          if (relatedContact) {
+            const relatedContactIds = (relatedContact.related_contact_ids as Identifier[]) || [];
+            const updatedIds = relatedContactIds.filter((id) => id !== currentContactId);
+            await dataProvider.update("contacts", {
+              id: relatedId,
+              data: {
+                related_contact_ids: updatedIds,
+              },
+              previousData: relatedContact,
+            });
+          }
+        }
+        
+        return result;
       },
       beforeGetList: async (params) => {
         return applyFullTextSearch([
           "first_name",
           "last_name",
-          "company_name",
-          "title",
           "email",
           "phone",
           "background",

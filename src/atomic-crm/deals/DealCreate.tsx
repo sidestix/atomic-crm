@@ -78,7 +78,6 @@ export const DealCreate = ({ open }: { open: boolean }) => {
           <Form
             defaultValues={{
               sales_id: identity?.id,
-              contact_ids: [],
               index: 0,
             }}
           >

@@ -13,11 +13,6 @@ const ContactOptionRender = () => {
         <span>
           {record.first_name} {record.last_name}
         </span>
-        <span className="text-xs text-muted-foreground">
-          {record.title}
-          {record.title && record.company_name && " at "}
-          {record.company_name}
-        </span>
       </div>
     </div>
   );

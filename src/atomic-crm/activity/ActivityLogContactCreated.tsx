@@ -28,8 +28,6 @@ export function ActivityLogContactCreated({
           <Link to={`/contacts/${contact.id}/show`}>
             {contact.first_name}&nbsp;{contact.last_name}
           </Link>
-          &nbsp;
-          {context !== "company" && <>to company {activity.company_id}</>}
         </span>
         {context === "company" && (
           <span className="text-muted-foreground text-sm">

@@ -14,7 +14,6 @@ import {
 import {
   DeleteButton,
   EditButton,
-  ReferenceArrayField,
   ReferenceField,
   ReferenceManyField,
 } from "@/components/admin";
@@ -26,7 +25,6 @@ import { CompanyAvatar } from "../companies/CompanyAvatar";
 import { NoteCreate, NotesIterator } from "../notes";
 import { useConfigurationContext } from "../root/ConfigurationContext";
 import type { Deal } from "../types";
-import { ContactList } from "./ContactList";
 import { findDealLabel } from "./deal";
 
 export const DealShow = ({ open, id }: { open: boolean; id?: string }) => {
@@ -134,22 +132,6 @@ const DealShowContent = () => {
               </span>
             </div>
           </div>
-
-          {!!record.contact_ids?.length && (
-            <div className="m-4">
-              <div className="flex flex-col min-h-12 mr-10">
-                <span className="text-xs text-muted-foreground tracking-wide">
-                  Contacts
-                </span>
-                <ReferenceArrayField
-                  source="contact_ids"
-                  reference="contacts_summary"
-                >
-                  <ContactList />
-                </ReferenceArrayField>
-              </div>
-            </div>
-          )}
 
           {record.description && (
             <div className="m-4 whitespace-pre-line">

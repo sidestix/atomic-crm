@@ -1,13 +1,10 @@
 import {
-  ReferenceField,
   ReferenceManyField,
-  TextField,
 } from "@/components/admin";
 import { Card, CardContent } from "@/components/ui/card";
 import { ShowBase, useShowContext } from "ra-core";
 import { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { CompanyAvatar } from "../companies/CompanyAvatar";
 import { NoteCreate, NotesIterator } from "../notes";
 import type { Contact } from "../types";
 import { Avatar } from "./Avatar";
@@ -68,30 +65,6 @@ const ContactShowContent = () => {
                 <h5 className="text-xl font-semibold">
                   {record.first_name} {record.last_name}
                 </h5>
-                <div className="inline-flex text-sm text-muted-foreground">
-                  {record.title}
-                  {record.title && record.company_id != null && " at "}
-                  {record.company_id != null && (
-                    <ReferenceField
-                      source="company_id"
-                      reference="companies"
-                      link="show"
-                    >
-                      &nbsp;
-                      <TextField source="name" />
-                    </ReferenceField>
-                  )}
-                </div>
-              </div>
-              <div>
-                <ReferenceField
-                  source="company_id"
-                  reference="companies"
-                  link="show"
-                  className="no-underline"
-                >
-                  <CompanyAvatar />
-                </ReferenceField>
               </div>
             </div>
             <ReferenceManyField

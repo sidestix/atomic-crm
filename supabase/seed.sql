@@ -126,6 +126,21 @@ Hybrid Wraps, Mixed Tips', '2024-03-04', NULL),
 (1, 'Order #12400
 Fusion Wraps, Combined Tips', '2024-03-05', NULL);
 
+-- Insert test company notes
+INSERT INTO "companyNotes" (company_id, text, date, sales_id) VALUES 
+(1, 'Order #20001
+Enterprise Package, Premium Support', '2024-01-05', NULL),
+(1, 'Order #20002
+Advanced Features, API Access', '2024-01-12', NULL),
+(1, 'Order #20003
+Demo Scheduled, Custom Integration', '2024-01-18', NULL),
+(2, 'Order #20004
+Startup Package, Basic Features', '2024-01-08', NULL),
+(2, 'Order #20005
+Vendor Evaluation, Competitive Analysis', '2024-01-15', NULL),
+(2, 'Order #20006
+API Integration, Developer Tools', '2024-01-22', NULL);
+
 -- Insert test tasks
 INSERT INTO tasks (contact_id, type, text, due_date, sales_id) VALUES 
 (1, 'call', 'Follow up on proposal', '2024-01-20', NULL),

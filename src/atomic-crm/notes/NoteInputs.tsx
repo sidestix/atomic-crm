@@ -6,15 +6,11 @@ import {
   TextInput,
   FileInput,
   FileField,
-  SelectInput,
 } from "@/components/admin";
 import { Button } from "@/components/ui/button";
-import { Status } from "../misc/Status";
-import { useConfigurationContext } from "../root/ConfigurationContext";
 import { getCurrentDate } from "./utils";
 
 export const NoteInputs = ({ showStatus }: { showStatus?: boolean }) => {
-  const { noteStatuses } = useConfigurationContext();
   const { setValue } = useFormContext();
   const [displayMore, setDisplayMore] = useState(false);
 
@@ -53,41 +49,18 @@ export const NoteInputs = ({ showStatus }: { showStatus?: boolean }) => {
           !displayMore ? "scale-y-0 max-h-0 h-0" : "scale-y-100",
         )}
       >
-        <div className="flex gap-4">
-          {showStatus && (
-            <SelectInput
-              source="status"
-              choices={noteStatuses.map((status) => ({
-                id: status.value,
-                name: status.label,
-                value: status.value,
-              }))}
-              optionText={optionRenderer}
-              defaultValue={"warm"}
-              helperText={false}
-            />
-          )}
-          <TextInput
-            source="date"
-            label="Date"
-            helperText={false}
-            type="datetime-local"
-            className="text-primary"
-            defaultValue={new Date().toISOString().slice(0, 16)}
-          />
-        </div>
+        <TextInput
+          source="date"
+          label="Date"
+          helperText={false}
+          type="datetime-local"
+          className="text-primary"
+          defaultValue={new Date().toISOString().slice(0, 16)}
+        />
         <FileInput source="attachments" multiple>
           <FileField source="src" title="title" target="_blank" />
         </FileInput>
       </div>
-    </div>
-  );
-};
-
-const optionRenderer = (choice: any) => {
-  return (
-    <div>
-      <Status status={choice.value} /> {choice.name}
     </div>
   );
 };

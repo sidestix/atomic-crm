@@ -9,6 +9,7 @@ import type {
 } from "ra-core";
 import { withLifecycleCallbacks } from "ra-core";
 import type {
+  CompanyNote,
   Contact,
   ContactNote,
   Deal,
@@ -277,6 +278,17 @@ export const dataProvider = withLifecycleCallbacks(
     {
       resource: "dealNotes",
       beforeSave: async (data: DealNote, _, __) => {
+        if (data.attachments) {
+          for (const fi of data.attachments) {
+            await uploadToBucket(fi);
+          }
+        }
+        return data;
+      },
+    },
+    {
+      resource: "companyNotes",
+      beforeSave: async (data: CompanyNote, _, __) => {
         if (data.attachments) {
           for (const fi of data.attachments) {
             await uploadToBucket(fi);

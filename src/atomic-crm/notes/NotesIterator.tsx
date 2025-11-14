@@ -10,7 +10,7 @@ export const NotesIterator = ({
   showStatus,
   highlightedNote,
 }: {
-  reference: "contacts" | "deals";
+  reference: "contacts" | "deals" | "companies";
   showStatus?: boolean;
   highlightedNote?: string | null;
 }) => {

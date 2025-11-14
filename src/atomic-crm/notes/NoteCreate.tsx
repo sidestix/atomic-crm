@@ -19,6 +19,7 @@ import { getCurrentDate } from "./utils";
 const foreignKeyMapping = {
   contacts: "contact_id",
   deals: "deal_id",
+  companies: "company_id",
 };
 
 export const NoteCreate = ({
@@ -26,7 +27,7 @@ export const NoteCreate = ({
   showStatus,
   className,
 }: {
-  reference: "contacts" | "deals";
+  reference: "contacts" | "deals" | "companies";
   showStatus?: boolean;
   className?: string;
 }) => {
@@ -52,7 +53,7 @@ const NoteCreateButton = ({
   reference,
   record,
 }: {
-  reference: "contacts" | "deals";
+  reference: "contacts" | "deals" | "companies";
   record: RaRecord<Identifier>;
 }) => {
   const [update] = useUpdate();
@@ -67,25 +68,23 @@ const NoteCreateButton = ({
     date: string;
     text: null;
     attachments: null;
-    status?: string;
   } = {
     date: getCurrentDate(),
     text: null,
     attachments: null,
   };
 
-  if (reference === "contacts") {
-    resetValues.status = "warm";
-  }
-
   const handleSuccess = (data: any) => {
     reset(resetValues, { keepValues: false });
     refetch();
-    update(reference, {
-      id: (record && record.id) as unknown as Identifier,
-      data: { last_seen: new Date().toISOString(), status: data.status },
-      previousData: record,
-    });
+    // Only update contact-specific fields for contacts
+    if (reference === "contacts") {
+      update(reference, {
+        id: (record && record.id) as unknown as Identifier,
+        data: { last_seen: new Date().toISOString() },
+        previousData: record,
+      });
+    }
     notify("Note added");
   };
 

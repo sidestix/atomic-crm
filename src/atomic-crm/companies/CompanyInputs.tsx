@@ -102,8 +102,8 @@ const CompanyAddressInputs = () => {
       <h6 className="text-lg font-semibold">Address</h6>
       <TextInput source="address" helperText={false} />
       <TextInput source="city" helperText={false} />
-      <TextInput source="zipcode" helperText={false} />
-      <TextInput source="stateAbbr" helperText={false} />
+      <TextInput source="zipcode" label="Postal/Zip Code" helperText={false} />
+      <TextInput source="stateAbbr" label="Province/State" helperText={false} />
       <TextInput source="country" helperText={false} />
     </div>
   );

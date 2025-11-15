@@ -10,6 +10,7 @@ export const CompanyEdit = () => (
   <EditBase
     actions={false}
     redirect="show"
+    mutationMode="pessimistic"
     transform={(values) => {
       // add https:// before website if not present
       if (values.website && !values.website.startsWith("http")) {

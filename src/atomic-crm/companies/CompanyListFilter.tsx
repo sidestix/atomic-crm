@@ -1,53 +1,30 @@
-import { Building, Truck, Users } from "lucide-react";
-import { FilterLiveForm, useGetIdentity } from "ra-core";
+import { Truck } from "lucide-react";
+import { FilterLiveForm } from "ra-core";
 
 import { ToggleFilterButton, SearchInput } from "@/components/admin";
 import { FilterCategory } from "../filters/FilterCategory";
-import { useConfigurationContext } from "../root/ConfigurationContext";
-import { sizes } from "./sizes";
+
+const retailerTypes = [
+  { id: "Retailer (No Discount)", name: "Retailer (No Discount)" },
+  { id: "Retailer (With Discount)", name: "Retailer (With Discount)" },
+  { id: "USVA", name: "USVA" },
+];
 
 export const CompanyListFilter = () => {
-  const { identity } = useGetIdentity();
-  const { companySectors } = useConfigurationContext();
-  const sectors = companySectors.map((sector) => ({
-    id: sector,
-    name: sector,
-  }));
   return (
     <div className="w-52 min-w-52 flex flex-col gap-8">
       <FilterLiveForm>
         <SearchInput source="q" />
       </FilterLiveForm>
 
-      <FilterCategory icon={<Building className="h-4 w-4" />} label="Size">
-        {sizes.map((size) => (
+      <FilterCategory icon={<Truck className="h-4 w-4" />} label="Retailer Type">
+        {retailerTypes.map((retailerType) => (
           <ToggleFilterButton
             className="w-full justify-between"
-            label={size.name}
-            value={{ size: size.id }}
+            label={retailerType.name}
+            value={{ sector: retailerType.id }}
           />
         ))}
-      </FilterCategory>
-
-      <FilterCategory icon={<Truck className="h-4 w-4" />} label="Sector">
-        {sectors.map((sector) => (
-          <ToggleFilterButton
-            className="w-full justify-between"
-            label={sector.name}
-            value={{ sector: sector.id }}
-          />
-        ))}
-      </FilterCategory>
-
-      <FilterCategory
-        icon={<Users className="h-4 w-4" />}
-        label="Account Manager"
-      >
-        <ToggleFilterButton
-          className="w-full justify-between"
-          label={"Me"}
-          value={{ sales_id: identity?.id }}
-        />
       </FilterCategory>
     </div>
   );

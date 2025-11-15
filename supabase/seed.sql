@@ -4,10 +4,10 @@ INSERT INTO companies (name, sector, website, city, "stateAbbr", description) VA
 ('TechStart Inc', 'Startup', 'https://techstart.com', 'Austin', 'TX', 'Innovative startup in AI space');
 
 -- Insert test contacts (after companies exist)
-INSERT INTO contacts (first_name, last_name, email_jsonb, title, gender, first_seen, last_seen, company_id, sales_id) VALUES 
-('John', 'Smith', '[{"email": "john@example.com", "type": "work"}]', 'Sales Manager', NULL, '2024-01-01T00:00:00Z', '2024-01-15T00:00:00Z', 1, NULL),
-('Jane', 'Doe', '[{"email": "jane@example.com", "type": "work"}]', 'Marketing Director', NULL, '2024-01-02T00:00:00Z', '2024-01-16T00:00:00Z', 2, NULL),
-('Mike', 'Johnson', '[{"email": "mike@example.com", "type": "work"}]', 'CEO', NULL, '2024-01-03T00:00:00Z', '2024-01-17T00:00:00Z', 1, NULL);
+INSERT INTO contacts (first_name, last_name, email_jsonb, title, gender, first_seen, last_seen, sales_id) VALUES 
+('John', 'Smith', '[{"email": "john@example.com", "type": "work"}]', 'Sales Manager', NULL, '2024-01-01T00:00:00Z', '2024-01-15T00:00:00Z', NULL),
+('Jane', 'Doe', '[{"email": "jane@example.com", "type": "work"}]', 'Marketing Director', NULL, '2024-01-02T00:00:00Z', '2024-01-16T00:00:00Z', NULL),
+('Mike', 'Johnson', '[{"email": "mike@example.com", "type": "work"}]', 'CEO', NULL, '2024-01-03T00:00:00Z', '2024-01-17T00:00:00Z', NULL);
 
 -- Insert test contact notes
 INSERT INTO "contactNotes" (contact_id, text, date, sales_id) VALUES 
@@ -145,3 +145,10 @@ API Integration, Developer Tools', '2024-01-22', NULL);
 INSERT INTO tasks (contact_id, type, text, due_date, sales_id) VALUES 
 (1, 'call', 'Follow up on proposal', '2024-01-20', NULL),
 (2, 'email', 'Send case studies', '2024-01-15', NULL);
+
+-- Insert test company tasks
+INSERT INTO tasks (company_id, type, text, due_date, sales_id) VALUES 
+(1, 'call', 'Schedule quarterly review meeting', '2024-01-25', NULL),
+(1, 'email', 'Send contract renewal information', '2024-01-22', NULL),
+(2, 'call', 'Follow up on partnership discussion', '2024-01-18', NULL),
+(2, 'email', 'Share product roadmap', '2024-01-19', NULL);

@@ -4,6 +4,7 @@ import {
   TextInput,
   SelectInput,
   SaveButton,
+  RadioButtonGroupInput,
 } from "@/components/admin";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,10 +31,67 @@ import {
   useNotify,
   useRecordContext,
   useUpdate,
+  type Identifier,
 } from "ra-core";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useFormContext, useWatch } from "react-hook-form";
 import { contactOptionText } from "../misc/ContactOption";
 import { useConfigurationContext } from "../root/ConfigurationContext";
+import type { Company } from "../types";
+
+const TaskEntitySelector = () => {
+  const form = useFormContext();
+  const entityType = useWatch({ name: "_entity_type" }) || "contact";
+  
+  useEffect(() => {
+    // Clear the other field when entity type changes
+    if (entityType === "contact") {
+      form.setValue("company_id", undefined);
+    } else {
+      form.setValue("contact_id", undefined);
+    }
+  }, [entityType, form]);
+
+  return (
+    <>
+      <RadioButtonGroupInput
+        source="_entity_type"
+        label="Task Type"
+        choices={[
+          { id: "contact", name: "Contact Task" },
+          { id: "company", name: "Company Task" },
+        ]}
+        defaultValue="contact"
+        helperText={false}
+      />
+      {entityType === "contact" ? (
+        <ReferenceInput
+          source="contact_id"
+          reference="contacts_summary"
+        >
+          <AutocompleteInput
+            label="Contact"
+            optionText={contactOptionText}
+            helperText={false}
+            validate={required()}
+          />
+        </ReferenceInput>
+      ) : (
+        <ReferenceInput
+          source="company_id"
+          reference="companies_summary"
+        >
+          <AutocompleteInput
+            label="Company"
+            optionText="name"
+            helperText={false}
+            validate={required()}
+          />
+        </ReferenceInput>
+      )}
+    </>
+  );
+};
 
 export const AddTask = ({
   selectContact,
@@ -47,24 +105,29 @@ export const AddTask = ({
   const [update] = useUpdate();
   const notify = useNotify();
   const { taskTypes } = useConfigurationContext();
-  const contact = useRecordContext();
+  const contact = useRecordContext<{ id?: Identifier }>();
+  const company = useRecordContext<Company>();
   const [open, setOpen] = useState(false);
+  
   const handleOpen = () => {
     setOpen(true);
   };
 
   const handleSuccess = async (data: any) => {
     setOpen(false);
-    const contact = await dataProvider.getOne("contacts", {
-      id: data.contact_id,
-    });
-    if (!contact.data) return;
-
-    await update("contacts", {
-      id: contact.data.id,
-      data: { last_seen: new Date().toISOString() },
-      previousData: contact.data,
-    });
+    
+    if (data.contact_id) {
+      const contact = await dataProvider.getOne("contacts", {
+        id: data.contact_id,
+      });
+      if (contact.data) {
+        await update("contacts", {
+          id: contact.data.id,
+          data: { last_seen: new Date().toISOString() },
+          previousData: contact.data,
+        });
+      }
+    }
 
     notify("Task added");
   };
@@ -107,7 +170,8 @@ export const AddTask = ({
         resource="tasks"
         record={{
           type: "None",
-          contact_id: contact?.id,
+          contact_id: !selectContact ? contact?.id : undefined,
+          company_id: !selectContact ? company?.id : undefined,
           due_date: new Date().toISOString().slice(0, 10),
           sales_id: identity.id,
         }}
@@ -115,6 +179,17 @@ export const AddTask = ({
           const dueDate = new Date(data.due_date);
           dueDate.setHours(0, 0, 0, 0);
           data.due_date = dueDate.toISOString();
+          
+          // Remove the virtual _entity_type field
+          delete data._entity_type;
+          
+          // Ensure only one ID is set
+          if (data.contact_id) {
+            delete data.company_id;
+          } else if (data.company_id) {
+            delete data.contact_id;
+          }
+          
           return {
             ...data,
             due_date: new Date(data.due_date).toISOString(),
@@ -128,12 +203,18 @@ export const AddTask = ({
               <DialogHeader>
                 <DialogTitle>
                   {!selectContact
-                    ? "Create a new task for "
+                    ? `Create a new task for ${contact ? "contact" : company ? "company" : ""}`
                     : "Create a new task"}
-                  {!selectContact && (
+                  {!selectContact && contact?.id && (
                     <RecordRepresentation
-                      record={contact}
+                      record={contact as { id: Identifier }}
                       resource="contacts"
+                    />
+                  )}
+                  {!selectContact && company?.id && (
+                    <RecordRepresentation
+                      record={company}
+                      resource="companies"
                     />
                   )}
                 </DialogTitle>
@@ -149,17 +230,7 @@ export const AddTask = ({
                   helperText={false}
                 />
                 {selectContact && (
-                  <ReferenceInput
-                    source="contact_id"
-                    reference="contacts_summary"
-                  >
-                    <AutocompleteInput
-                      label="Contact"
-                      optionText={contactOptionText}
-                      helperText={false}
-                      validate={required()}
-                    />
-                  </ReferenceInput>
+                  <TaskEntitySelector />
                 )}
 
                 <div className="flex flex-row gap-4">

@@ -67,6 +67,7 @@ export type Company = {
   tax_identifier: string;
   country: string;
   context_links?: string[];
+  shipping_instructions?: string;
   nb_contacts?: number;
   nb_deals?: number;
 } & Pick<RaRecord, "id">;
@@ -164,7 +165,8 @@ export type ManualDiscount = {
 } & Pick<RaRecord, "id">;
 
 export type Task = {
-  contact_id: Identifier;
+  contact_id?: Identifier;
+  company_id?: Identifier;
   type: string;
   text: string;
   due_date: string;

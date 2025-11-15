@@ -1,16 +1,14 @@
 import {
   TextInput,
   SelectInput,
-  ArrayInput,
-  SimpleFormIterator,
+  AutocompleteInput,
 } from "@/components/admin";
 import { Separator } from "@/components/ui/separator";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { required, useRecordContext } from "ra-core";
 import ImageEditorField from "../misc/ImageEditorField";
-import { useConfigurationContext } from "../root/ConfigurationContext";
+import { countries } from "../contacts/countries";
 import type { Company } from "../types";
-import { sizes } from "./sizes";
 
 const isUrl = (url: string) => {
   if (!url) return;
@@ -77,21 +75,19 @@ const CompanyContactInputs = () => {
 };
 
 const CompanyContextInputs = () => {
-  const { companySectors } = useConfigurationContext();
   return (
     <div className="flex flex-col gap-4">
       <h6 className="text-lg font-semibold">Context</h6>
       <SelectInput
         source="sector"
-        choices={companySectors.map((sector) => ({
-          id: sector,
-          name: sector,
-        }))}
+        label="Retailer Type"
+        choices={[
+          { id: "Retailer (No Discount)", name: "Retailer (No Discount)" },
+          { id: "Retailer (With Discount)", name: "Retailer (With Discount)" },
+          { id: "USVA", name: "USVA" },
+        ]}
         helperText={false}
       />
-      <SelectInput source="size" choices={sizes} helperText={false} />
-      <TextInput source="revenue" helperText={false} />
-      <TextInput source="tax_identifier" helperText={false} />
     </div>
   );
 };
@@ -103,8 +99,15 @@ const CompanyAddressInputs = () => {
       <TextInput source="address" helperText={false} />
       <TextInput source="city" helperText={false} />
       <TextInput source="zipcode" label="Postal/Zip Code" helperText={false} />
-      <TextInput source="stateAbbr" label="Province/State" helperText={false} />
-      <TextInput source="country" helperText={false} />
+      <TextInput source="stateAbbr" label="Province/State (Abbreviation)" helperText={false} />
+      <AutocompleteInput
+        source="country"
+        choices={countries}
+        optionText="name"
+        optionValue="name"
+        placeholder="Search countries..."
+        helperText={false}
+      />
     </div>
   );
 };
@@ -112,18 +115,9 @@ const CompanyAddressInputs = () => {
 const CompanyAdditionalInformationInputs = () => {
   return (
     <div className="flex flex-col gap-4">
-      <h6 className="text-lg font-semibold">Additional information</h6>
-      <TextInput source="description" multiline helperText={false} />
-      <ArrayInput source="context_links" helperText={false}>
-        <SimpleFormIterator disableReordering fullWidth getItemLabel={false}>
-          <TextInput
-            source=""
-            label={false}
-            helperText={false}
-            validate={isUrl}
-          />
-        </SimpleFormIterator>
-      </ArrayInput>
+      <h6 className="text-lg font-semibold">Billing/Shipping Instructions</h6>
+      <TextInput source="description" label="Billing Instructions" multiline helperText={false} />
+      <TextInput source="shipping_instructions" label="Shipping Instructions" multiline helperText={false} />
     </div>
   );
 };

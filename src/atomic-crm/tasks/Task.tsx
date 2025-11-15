@@ -11,7 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { MoreVertical } from "lucide-react";
 import { useDeleteWithUndoController, useNotify, useUpdate } from "ra-core";
 import { useEffect, useState } from "react";
-import type { Contact, Task as TData } from "../types";
+import type { Contact, Company, Task as TData } from "../types";
 import { TaskEdit } from "./TaskEdit";
 
 export const Task = ({
@@ -95,7 +95,7 @@ export const Task = ({
             <div className="text-sm text-muted-foreground">
               due&nbsp;
               <DateField source="due_date" record={task} />
-              {showContact && (
+              {showContact && task.contact_id && (
                 <ReferenceField<TData, Contact>
                   source="contact_id"
                   reference="contacts"
@@ -110,6 +110,25 @@ export const Task = ({
                         (Re:&nbsp;
                         {referenceRecord?.first_name}{" "}
                         {referenceRecord?.last_name})
+                      </>
+                    );
+                  }}
+                />
+              )}
+              {showContact && task.company_id && (
+                <ReferenceField<TData, Company>
+                  source="company_id"
+                  reference="companies"
+                  record={task}
+                  link="show"
+                  className="inline text-sm text-muted-foreground"
+                  render={({ referenceRecord }) => {
+                    if (!referenceRecord) return null;
+                    return (
+                      <>
+                        {" "}
+                        (Re:&nbsp;
+                        {referenceRecord?.name})
                       </>
                     );
                   }}

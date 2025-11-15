@@ -163,7 +163,7 @@ const ContactAddressInputs = () => {
       <TextInput source="address" helperText={false} />
       <TextInput source="city" helperText={false} />
       <TextInput source="zipcode" label="Postal/Zip Code" helperText={false} />
-      <TextInput source="stateAbbr" label="Province/State" helperText={false} />
+      <TextInput source="stateAbbr" label="Province/State (Abbreviation)" helperText={false} />
       <AutocompleteInput
         source="country"
         choices={countries}

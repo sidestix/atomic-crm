@@ -85,7 +85,7 @@ BEGIN
       "contactNotes".id,
       'note'::TEXT as entity_type,
       'Note from ' || COALESCE(contacts.first_name || ' ' || contacts.last_name, 'Unknown Contact') as title,
-      TO_CHAR("contactNotes".date, 'MMM DD, YYYY') as subtitle,
+      TO_CHAR("contactNotes".date, 'FMMonth FMDD, YYYY') as subtitle,
       LEFT("contactNotes".text, 200) as snippet,
       '/contacts/' || contacts.id::TEXT || '/show?note=' || "contactNotes".id::TEXT as url,
       jsonb_build_object(

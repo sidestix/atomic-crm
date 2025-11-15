@@ -7,13 +7,14 @@ import {
   TextField,
   DateField,
   UrlField,
-  SelectField,
 } from "@/components/admin";
 
 import { AsideSection } from "../misc/AsideSection";
 import { SaleName } from "../sales/SaleName";
 import type { Company } from "../types";
-import { sizes } from "./sizes";
+import { ReferenceManyField } from "@/components/admin";
+import { TasksIterator } from "../tasks/TasksIterator";
+import { AddTask } from "../tasks/AddTask";
 
 interface CompanyAsideProps {
   link?: string;
@@ -39,6 +40,9 @@ export const CompanyAside = ({ link = "edit" }: CompanyAsideProps) => {
 
       <ContextInfo record={record} />
 
+      <BillingInstructions record={record} />
+      <ShippingInstructions record={record} />
+      <TasksSection />
       <AdditionalInfo record={record} />
     </div>
   );
@@ -75,31 +79,14 @@ const CompanyInfo = ({ record }: { record: Company }) => {
 };
 
 const ContextInfo = ({ record }: { record: Company }) => {
-  if (!record.revenue && !record.id) {
+  if (!record.sector) {
     return null;
   }
 
   return (
     <AsideSection title="Context">
       {record.sector && (
-        <span>
-          Sector: <TextField source="sector" />
-        </span>
-      )}
-      {record.size && (
-        <span>
-          Size: <SelectField source="size" choices={sizes} />
-        </span>
-      )}
-      {record.revenue && (
-        <span>
-          Revenue: <TextField source="revenue" />
-        </span>
-      )}
-      {record.tax_identifier && (
-        <span>
-          Tax Identifier: <TextField source="tax_identifier" />
-        </span>
+        <TextField source="sector" />
       )}
     </AsideSection>
   );
@@ -121,43 +108,55 @@ const AddressInfo = ({ record }: { record: Company }) => {
   );
 };
 
+const BillingInstructions = ({ record }: { record: Company }) => {
+  if (!record.description) {
+    return null;
+  }
+
+  return (
+    <AsideSection title="Billing Instructions">
+      <p className="text-sm">{record.description}</p>
+    </AsideSection>
+  );
+};
+
+const ShippingInstructions = ({ record }: { record: Company }) => {
+  if (!record.shipping_instructions) {
+    return null;
+  }
+
+  return (
+    <AsideSection title="Shipping Instructions">
+      <p className="text-sm">{record.shipping_instructions}</p>
+    </AsideSection>
+  );
+};
+
+const TasksSection = () => {
+  return (
+    <AsideSection title="Tasks">
+      <ReferenceManyField
+        target="company_id"
+        reference="tasks"
+        sort={{ field: "due_date", order: "ASC" }}
+      >
+        <TasksIterator />
+      </ReferenceManyField>
+      <AddTask />
+    </AsideSection>
+  );
+};
+
 const AdditionalInfo = ({ record }: { record: Company }) => {
   if (
     !record.created_at &&
-    !record.sales_id &&
-    !record.description &&
-    !record.context_links
+    !record.sales_id
   ) {
     return null;
   }
-  const getBaseURL = (url: string) => {
-    const urlObject = new URL(url.startsWith("http") ? url : `https://${url}`);
-    return urlObject.hostname;
-  };
 
   return (
-    <AsideSection title="Additional Info">
-      {record.description && (
-        <p className="text-sm  mb-1">{record.description}</p>
-      )}
-      {record.context_links && (
-        <div className="flex flex-col">
-          {record.context_links.map((link, index) =>
-            link ? (
-              <a
-                key={index}
-                className="text-sm underline hover:no-underline mb-1"
-                href={link.startsWith("http") ? link : `https://${link}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={link}
-              >
-                {getBaseURL(link)}
-              </a>
-            ) : null,
-          )}
-        </div>
-      )}
+    <AsideSection>
       {record.sales_id !== null && (
         <div className="inline-flex text-sm text-muted-foreground mb-1">
           Followed by&nbsp;

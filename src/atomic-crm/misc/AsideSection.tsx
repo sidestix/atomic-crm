@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
 export type AsideSectionProps = {
-  title: string;
+  title?: string;
   children?: ReactNode;
   noGap?: boolean;
 };
@@ -11,8 +11,8 @@ export type AsideSectionProps = {
 export function AsideSection({ title, children, noGap }: AsideSectionProps) {
   return (
     <div className="mb-6 text-sm">
-      <h3 className="font-medium pb-1">{title}</h3>
-      <Separator />
+      {title && <h3 className="font-medium pb-1">{title}</h3>}
+      {title && <Separator />}
       <div className={cn("pt-2 flex flex-col", { "gap-1": !noGap })}>
         {children}
       </div>

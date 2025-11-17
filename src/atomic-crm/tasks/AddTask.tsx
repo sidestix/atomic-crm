@@ -170,8 +170,10 @@ export const AddTask = ({
         resource="tasks"
         record={{
           type: "None",
-          contact_id: !selectContact ? contact?.id : undefined,
-          company_id: !selectContact ? company?.id : undefined,
+          // Only set the ID for the context we're actually in
+          // If company exists, use it; otherwise use contact (but not both)
+          contact_id: !selectContact && !company?.id ? contact?.id : undefined,
+          company_id: !selectContact && company?.id ? company?.id : undefined,
           due_date: new Date().toISOString().slice(0, 10),
           sales_id: identity.id,
         }}

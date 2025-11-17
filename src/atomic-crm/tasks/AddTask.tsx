@@ -30,6 +30,7 @@ import {
   useGetIdentity,
   useNotify,
   useRecordContext,
+  useResourceContext,
   useUpdate,
   type Identifier,
 } from "ra-core";
@@ -105,6 +106,7 @@ export const AddTask = ({
   const [update] = useUpdate();
   const notify = useNotify();
   const { taskTypes } = useConfigurationContext();
+  const resource = useResourceContext();
   const contact = useRecordContext<{ id?: Identifier }>();
   const company = useRecordContext<Company>();
   const [open, setOpen] = useState(false);
@@ -170,10 +172,11 @@ export const AddTask = ({
         resource="tasks"
         record={{
           type: "None",
-          // Only set the ID for the context we're actually in
-          // If company exists, use it; otherwise use contact (but not both)
-          contact_id: !selectContact && !company?.id ? contact?.id : undefined,
-          company_id: !selectContact && company?.id ? company?.id : undefined,
+          // Use resource context to determine which ID to set
+          // If selectContact is true, user will select (neither set)
+          // Otherwise, use the resource context to determine which one
+          contact_id: !selectContact && resource === "contacts" ? contact?.id : undefined,
+          company_id: !selectContact && resource === "companies" ? company?.id : undefined,
           due_date: new Date().toISOString().slice(0, 10),
           sales_id: identity.id,
         }}

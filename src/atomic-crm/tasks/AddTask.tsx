@@ -177,12 +177,11 @@ export const AddTask = ({
           // Otherwise, use the resource context to determine which one
           contact_id: !selectContact && resource === "contacts" ? contact?.id : undefined,
           company_id: !selectContact && resource === "companies" ? company?.id : undefined,
-          due_date: new Date().toISOString().slice(0, 10),
+          due_date: new Date(new Date().setHours(0,0,0,0)).toISOString().slice(0, 10),
           sales_id: identity.id,
         }}
         transform={(data) => {
-          const dueDate = new Date(data.due_date);
-          dueDate.setHours(0, 0, 0, 0);
+          const dueDate = new Date(data.due_date+"T00:00:00");
           data.due_date = dueDate.toISOString();
           
           // Remove the virtual _entity_type field

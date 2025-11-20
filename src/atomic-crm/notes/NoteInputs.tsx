@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useFormContext } from "react-hook-form";
+import { format } from "date-fns";
 
 import { cn } from "@/lib/utils.ts";
 import {
@@ -31,7 +32,6 @@ export const NoteInputs = ({ showStatus }: { showStatus?: boolean }) => {
             size="sm"
             onClick={() => {
               setDisplayMore(!displayMore);
-              setValue("date", getCurrentDate());
             }}
             className="text-sm text-muted-foreground underline hover:no-underline p-0 h-auto cursor-pointer"
           >
@@ -55,7 +55,7 @@ export const NoteInputs = ({ showStatus }: { showStatus?: boolean }) => {
           helperText={false}
           type="datetime-local"
           className="text-primary"
-          defaultValue={new Date().toISOString().slice(0, 16)}
+          defaultValue={format(new Date(), "yyyy-MM-dd'T'HH:mm")}
         />
         <FileInput source="attachments" multiple>
           <FileField source="src" title="title" target="_blank" />

@@ -10,10 +10,11 @@ import {
   FormField,
   FormLabel,
 } from "@/components/admin/form";
-import { cn } from "@/lib/utils.ts";
+import { cn, isValidDate } from "@/lib/utils.ts";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { InputHelperText } from "@/components/admin/input-helper-text";
+import { format } from "date-fns";
 
 export type TextInputProps = InputProps & {
   multiline?: boolean;
@@ -35,9 +36,20 @@ export const TextInput = (props: TextInputProps) => {
 
   const value =
     props.type === "datetime-local"
-      ? field.value?.slice(0, 16) // Adjust for datetime-local input format
+      ? field.value && isValidDate(field.value)
+        ? format(new Date(field.value), "yyyy-MM-dd'T'HH:mm")
+        : undefined
       : props.type === "date"
-        ? field.value?.slice(0, 10) // Adjust for date input format
+        ? field.value && isValidDate(field.value)
+          ? format(
+              new Date(
+                typeof field.value === "string" && field.value.length === 10
+                  ? field.value + "T00:00:00"
+                  : field.value
+              ),
+              "yyyy-MM-dd"
+            )
+          : undefined
         : field.value;
 
   return (

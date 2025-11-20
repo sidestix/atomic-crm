@@ -33,6 +33,14 @@ export const TaskEdit = ({
           id={taskId}
           resource="tasks"
           className="mt-0"
+          transform={(data) => {
+            // Convert date-only string to UTC timestamp
+            if (data.due_date) {
+              const dueDate = new Date(data.due_date + "T00:00:00");
+              data.due_date = dueDate.toISOString();
+            }
+            return data;
+          }}
           mutationOptions={{
             onSuccess: () => {
               close();

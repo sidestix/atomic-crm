@@ -14,7 +14,7 @@ import { SaveButton } from "@/components/admin";
 import { cn } from "@/lib/utils";
 
 import { NoteInputs } from "./NoteInputs";
-import { getCurrentDate } from "./utils";
+import { format } from "date-fns";
 
 const foreignKeyMapping = {
   contacts: "contact_id",
@@ -69,7 +69,7 @@ const NoteCreateButton = ({
     text: null;
     attachments: null;
   } = {
-    date: getCurrentDate(),
+    date: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
     text: null,
     attachments: null,
   };
@@ -97,7 +97,9 @@ const NoteCreateButton = ({
           ...data,
           [foreignKeyMapping[reference]]: record.id,
           sales_id: identity.id,
-          date: data.date || getCurrentDate(),
+          date: data.date
+            ? new Date(data.date).toISOString()
+            : new Date().toISOString()
         })}
         mutationOptions={{
           onSuccess: handleSuccess,

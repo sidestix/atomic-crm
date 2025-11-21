@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useQueryClient } from "@tanstack/react-query";
 import { MoreVertical } from "lucide-react";
+import { addDays } from "date-fns";
 import { useDeleteWithUndoController, useNotify, useUpdate } from "ra-core";
 import { useEffect, useState } from "react";
 import type { Contact, Company, Task as TData } from "../types";
@@ -156,9 +157,7 @@ export const Task = ({
                 update("tasks", {
                   id: task.id,
                   data: {
-                    due_date: new Date(Date.now() + 24 * 60 * 60 * 1000)
-                      .toISOString()
-                      .slice(0, 10),
+                    due_date: addDays(new Date(), 1).toISOString().slice(0, 10),
                   },
                   previousData: task,
                 });
@@ -172,9 +171,7 @@ export const Task = ({
                 update("tasks", {
                   id: task.id,
                   data: {
-                    due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-                      .toISOString()
-                      .slice(0, 10),
+                    due_date: addDays(new Date(), 7).toISOString().slice(0, 10),
                   },
                   previousData: task,
                 });

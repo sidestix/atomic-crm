@@ -23,7 +23,7 @@ import {
   useUpdate,
   WithRecord,
 } from "ra-core";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import type { FieldValues, SubmitHandler } from "react-hook-form";
 
 import { ReferenceField } from "@/components/admin";
@@ -101,7 +101,17 @@ export const Note = ({
   const handleNoteUpdate: SubmitHandler<FieldValues> = (values) => {
     update(
       resource,
-      { id: note.id, data: values, previousData: note },
+      {
+        id: note.id,
+        data: {
+          ...values,
+          // Convert datetime-local format to ISO string (same as NoteCreate)
+          date: values.date
+            ? new Date(values.date).toISOString()
+            : note.date,
+        },
+        previousData: note,
+      },
       {
         onSuccess: () => {
           setEditing(false);

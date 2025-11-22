@@ -9,7 +9,6 @@ import {
   FileField,
 } from "@/components/admin";
 import { Button } from "@/components/ui/button";
-import { getCurrentDate } from "./utils";
 
 export const NoteInputs = ({ showStatus }: { showStatus?: boolean }) => {
   const { setValue } = useFormContext();

@@ -39,6 +39,7 @@ export type CRMProps = {
   dataProvider?: DataProvider;
   authProvider?: AuthProvider;
   disableTelemetry?: boolean;
+  enableDeals?: boolean;
 } & Partial<ConfigurationContextValue>;
 
 /**
@@ -59,6 +60,7 @@ export type CRMProps = {
  * @param {NoteStatus[]} noteStatuses - The statuses of notes used in the application.
  * @param {string[]} taskTypes - The types of tasks used in the application.
  * @param {string} title - The title of the CRM application.
+ * @param {boolean} enableDeals - Whether to enable deal functionality. Defaults to true.
  *
  * @returns {JSX.Element} The rendered CRM application.
  *
@@ -95,6 +97,7 @@ export const CRM = ({
   dataProvider = defaultDataProvider,
   authProvider = defaultAuthProvider,
   disableTelemetry,
+  enableDeals = true,
   ...rest
 }: CRMProps) => {
   useEffect(() => {
@@ -123,6 +126,7 @@ export const CRM = ({
       noteStatuses={noteStatuses}
       taskTypes={taskTypes}
       title={title}
+      enableDeals={enableDeals}
     >
       <Admin
         dataProvider={dataProvider}
@@ -149,11 +153,11 @@ export const CRM = ({
           <Route path={SettingsPage.path} element={<SettingsPage />} />
           <Route path="/search" element={<GlobalSearchPage />} />
         </CustomRoutes>
-        <Resource name="deals" {...deals} />
+        {enableDeals && <Resource name="deals" {...deals} />}
         <Resource name="contacts" {...contacts} />
         <Resource name="companies" {...companies} />
         <Resource name="contactNotes" />
-        <Resource name="dealNotes" />
+        {enableDeals && <Resource name="dealNotes" />}
         <Resource name="tasks" />
         <Resource name="sales" {...sales} />
         <Resource name="tags" />

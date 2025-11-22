@@ -9,6 +9,7 @@ import {
   DEAL_CREATED,
   DEAL_NOTE_CREATED,
 } from "../consts";
+import { useConfigurationContext } from "../root/ConfigurationContext";
 import type { Activity } from "../types";
 import { ActivityLogCompanyCreated } from "./ActivityLogCompanyCreated";
 import { ActivityLogCompanyNoteCreated } from "./ActivityLogCompanyNoteCreated";
@@ -58,6 +59,8 @@ export function ActivityLogIterator({
 }
 
 function ActivityItem({ activity }: { activity: Activity }) {
+  const { enableDeals } = useConfigurationContext();
+
   if (activity.type === COMPANY_CREATED) {
     return <ActivityLogCompanyCreated activity={activity} />;
   }
@@ -72,6 +75,10 @@ function ActivityItem({ activity }: { activity: Activity }) {
 
   if (activity.type === CONTACT_NOTE_CREATED) {
     return <ActivityLogContactNoteCreated activity={activity} />;
+  }
+
+  if (!enableDeals) {
+    return null;
   }
 
   if (activity.type === DEAL_CREATED) {

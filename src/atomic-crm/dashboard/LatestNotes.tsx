@@ -4,10 +4,12 @@ import { FileText } from "lucide-react";
 import { useGetIdentity, useGetList } from "ra-core";
 
 import { ReferenceField, TextField } from "@/components/admin";
+import { useConfigurationContext } from "../root/ConfigurationContext";
 import type { Contact, ContactNote } from "../types";
 
 export const LatestNotes = () => {
   const { identity } = useGetIdentity();
+  const { enableDeals } = useConfigurationContext();
   const { data: contactNotesData, isPending: contactNotesLoading } = useGetList(
     "contactNotes",
     {
@@ -24,13 +26,13 @@ export const LatestNotes = () => {
       sort: { field: "date", order: "DESC" },
       filter: { sales_id: identity?.id },
     },
-    { enabled: Number.isInteger(identity?.id) },
+    { enabled: enableDeals && Number.isInteger(identity?.id) },
   );
-  if (contactNotesLoading || dealNotesLoading) {
+  if (contactNotesLoading || (enableDeals && dealNotesLoading)) {
     return null;
   }
   // TypeScript guards
-  if (!contactNotesData || !dealNotesData) {
+  if (!contactNotesData) {
     return null;
   }
 
@@ -40,7 +42,9 @@ export const LatestNotes = () => {
         ...note,
         type: "contactNote",
       })),
-      dealNotesData.map((note) => ({ ...note, type: "dealNote" })),
+      enableDeals && dealNotesData
+        ? dealNotesData.map((note) => ({ ...note, type: "dealNote" }))
+        : [],
     )
     .sort((a, b) => new Date(b.date).valueOf() - new Date(a.date).valueOf())
     .slice(0, 5);

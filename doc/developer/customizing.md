@@ -58,6 +58,7 @@ export default App;
 | `dealCategories`        | The categories of deals used in the application.                      | string[]        |
 | `dealPipelineStatuses`  | The statuses of deals in the pipeline used in the application         | string[]        |
 | `dealStages`            | The stages of deals used in the application.                          | DealStage[]     |
+| `enableDeals`           | Whether to enable deal functionality. Set to `false` to disable deals. Defaults to `true`. | boolean |
 | `lightTheme`            | The theme to use when the application is in light mode.               | RaThemeOptions  |
 | `logo`                  | The logo used in the CRM application.                                 | string          |
 | `noteStatuses`          | The statuses of notes used in the application.                        | NoteStatus[]    |
@@ -83,3 +84,24 @@ const App = () => <CRM disableTelemetry />;
 
 export default App;
 ```
+
+## Disabling Deals Functionality
+
+If you don't need deal functionality in your CRM, you can disable it by setting `enableDeals` to `false`:
+
+```tsx
+import { CRM } from "@/atomic-crm/root/CRM";
+
+const App = () => <CRM enableDeals={false} />;
+
+export default App;
+```
+
+When deals are disabled:
+- Deal resources and routes are not registered
+- Deal-related UI components are hidden (charts, lists, etc.)
+- Deal activities are filtered from activity logs
+- Deal notes are excluded from latest notes
+- Company cards won't show deal counts
+
+All deal-related code remains in the codebase, making it easier to merge future updates from the upstream repository. You can re-enable deals at any time by setting `enableDeals={true}` or removing the prop (since it defaults to `true`).

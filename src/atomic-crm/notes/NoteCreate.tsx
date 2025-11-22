@@ -13,6 +13,7 @@ import { useFormContext } from "react-hook-form";
 import { SaveButton } from "@/components/admin";
 import { cn } from "@/lib/utils";
 
+import { useConfigurationContext } from "../root/ConfigurationContext";
 import { NoteInputs } from "./NoteInputs";
 import { format } from "date-fns";
 
@@ -20,7 +21,7 @@ const foreignKeyMapping = {
   contacts: "contact_id",
   deals: "deal_id",
   companies: "company_id",
-};
+} as const;
 
 export const NoteCreate = ({
   reference,
@@ -34,6 +35,12 @@ export const NoteCreate = ({
   const resource = useResourceContext();
   const record = useRecordContext();
   const { identity } = useGetIdentity();
+  const { enableDeals } = useConfigurationContext();
+
+  // Safety check: don't render if deals are disabled and reference is deals
+  if (reference === "deals" && !enableDeals) {
+    return null;
+  }
 
   if (!record || !identity) return null;
 

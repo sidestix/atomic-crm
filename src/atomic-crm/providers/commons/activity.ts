@@ -23,6 +23,7 @@ export async function getActivityLog(
   dataProvider: DataProvider,
   companyId?: Identifier,
   salesId?: Identifier,
+  enableDeals: boolean = true,
 ) {
   const companyFilter = {} as any;
   if (companyId) {
@@ -43,7 +44,7 @@ export async function getActivityLog(
       getNewCompanies(dataProvider, companyFilter),
       getNewCompanyNotes(dataProvider, filter),
       getNewContactsAndNotes(dataProvider, filter),
-      getNewDealsAndNotes(dataProvider, filter),
+      enableDeals ? getNewDealsAndNotes(dataProvider, filter) : Promise.resolve([]),
     ]);
   return (
     [...newCompanies, ...newCompanyNotes, ...newContactsAndNotes, ...newDealsAndNotes]

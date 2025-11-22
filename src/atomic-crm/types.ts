@@ -184,7 +184,7 @@ export type ActivityCompanyCreated = {
 
 export type ActivityContactCreated = {
   type: typeof CONTACT_CREATED;
-  company_id: Identifier;
+  company_id?: Identifier | null;
   sales_id?: Identifier;
   contact: Contact;
   date: string;

@@ -5,12 +5,14 @@ import { ReferenceManyField } from "@/components/admin";
 import { Card } from "@/components/ui/card";
 
 import { Avatar as ContactAvatar } from "../contacts/Avatar";
+import { useConfigurationContext } from "../root/ConfigurationContext";
 import type { Company } from "../types";
 import { CompanyAvatar } from "./CompanyAvatar";
 
 export const CompanyCard = (props: { record?: Company }) => {
   const createPath = useCreatePath();
   const record = useRecordContext<Company>(props);
+  const { enableDeals } = useConfigurationContext();
   if (!record) return null;
 
   return (
@@ -38,7 +40,7 @@ export const CompanyCard = (props: { record?: Company }) => {
               </ReferenceManyField>
             ) : null}
           </div>
-          {record.nb_deals ? (
+          {enableDeals && record.nb_deals ? (
             <div className="flex items-center ml-2 gap-0.5">
               <DollarSign className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm font-medium">{record.nb_deals}</span>

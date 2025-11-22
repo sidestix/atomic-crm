@@ -7,7 +7,7 @@ import { Link, matchPath, useLocation } from "react-router";
 import { useConfigurationContext } from "../root/ConfigurationContext";
 
 const Header = () => {
-  const { darkModeLogo, lightModeLogo, title } = useConfigurationContext();
+  const { darkModeLogo, lightModeLogo, title, enableDeals } = useConfigurationContext();
   const location = useLocation();
 
   let currentPath: string | boolean = "/";
@@ -19,7 +19,7 @@ const Header = () => {
     currentPath = "/companies";
   } else if (matchPath("/search/*", location.pathname)) {
     currentPath = "/search";
-  } else if (matchPath("/deals/*", location.pathname)) {
+  } else if (enableDeals && matchPath("/deals/*", location.pathname)) {
     currentPath = "/deals";
   } else {
     currentPath = false;

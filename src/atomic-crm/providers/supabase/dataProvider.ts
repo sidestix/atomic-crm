@@ -216,8 +216,8 @@ const dataProviderWithCustomMethods = {
       ),
     );
   },
-  async getActivityLog(companyId?: Identifier) {
-    return getActivityLog(baseDataProvider, companyId);
+  async getActivityLog(companyId?: Identifier, enableDeals: boolean = true) {
+    return getActivityLog(baseDataProvider, companyId, undefined, enableDeals);
   },
   async isInitialized() {
     return getIsInitialized();

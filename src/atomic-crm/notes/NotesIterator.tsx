@@ -2,6 +2,7 @@ import { useListContext } from "ra-core";
 import * as React from "react";
 
 import { Separator } from "@/components/ui/separator";
+import { useConfigurationContext } from "../root/ConfigurationContext";
 import { Note } from "./Note";
 import { NoteCreate } from "./NoteCreate";
 
@@ -14,7 +15,14 @@ export const NotesIterator = ({
   showStatus?: boolean;
   highlightedNote?: string | null;
 }) => {
+  const { enableDeals } = useConfigurationContext();
   const { data, error, isPending } = useListContext();
+  
+  // Safety check: don't render if deals are disabled and reference is deals
+  if (reference === "deals" && !enableDeals) {
+    return null;
+  }
+  
   if (isPending || error) return null;
   return (
     <div className="mt-4">

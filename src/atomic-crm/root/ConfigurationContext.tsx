@@ -27,9 +27,11 @@ export interface ConfigurationContextValue {
   darkModeLogo: string;
   lightModeLogo: string;
   contactGender: ContactGender[];
+  enableDeals: boolean;
 }
 
-export interface ConfigurationProviderProps extends ConfigurationContextValue {
+export interface ConfigurationProviderProps
+  extends Partial<ConfigurationContextValue> {
   children: ReactNode;
 }
 
@@ -45,6 +47,7 @@ export const ConfigurationContext = createContext<ConfigurationContextValue>({
   darkModeLogo: defaultDarkModeLogo,
   lightModeLogo: defaultLightModeLogo,
   contactGender: defaultContactGender,
+  enableDeals: true,
 });
 
 export const ConfigurationProvider = ({
@@ -59,6 +62,7 @@ export const ConfigurationProvider = ({
   taskTypes,
   title,
   contactGender,
+  enableDeals = true,
 }: ConfigurationProviderProps) => (
   <ConfigurationContext.Provider
     value={{
@@ -72,6 +76,7 @@ export const ConfigurationProvider = ({
       title,
       taskTypes,
       contactGender,
+      enableDeals,
     }}
   >
     {children}

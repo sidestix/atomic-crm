@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { Identifier } from "ra-core";
 import { useDataProvider } from "ra-core";
 
+import { useConfigurationContext } from "../root/ConfigurationContext";
 import type { CrmDataProvider } from "../providers/types";
 import { ActivityLogContext } from "./ActivityLogContext";
 import { ActivityLogIterator } from "./ActivityLogIterator";
@@ -21,9 +22,10 @@ export function ActivityLog({
   context = "all",
 }: ActivityLogProps) {
   const dataProvider = useDataProvider<CrmDataProvider>();
+  const { enableDeals } = useConfigurationContext();
   const { data, isPending, error } = useQuery({
-    queryKey: ["activityLog", companyId],
-    queryFn: () => dataProvider.getActivityLog(companyId),
+    queryKey: ["activityLog", companyId, enableDeals],
+    queryFn: () => dataProvider.getActivityLog(companyId, enableDeals),
   });
 
   if (isPending) {

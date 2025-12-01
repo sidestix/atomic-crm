@@ -89,7 +89,7 @@ enable_signup = true
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true
 # If enabled, users need to confirm their email address before signing in.
-enable_confirmations = false
+enable_confirmations = true
 
 [auth.email.template.invite]
 subject = "You've been invited to Atomic CRM"
@@ -98,6 +98,19 @@ content_path = "./supabase/templates/invite.html"
 [auth.email.template.recovery]
 subject = "Reset your Atomic CRM Password"
 content_path = "./supabase/templates/recovery.html"
+
+# SMTP Configuration for sending emails via Resend
+# Set these environment variables before starting Supabase:
+# SUPABASE_AUTH_SMTP_PASS=your-resend-api-key
+# SUPABASE_AUTH_SMTP_ADMIN_EMAIL=your-sender-email@yourdomain.com
+[auth.smtp]
+enabled = true
+host = "smtp.resend.com"
+port = 465
+user = "resend"
+pass = "env(SUPABASE_AUTH_SMTP_PASS)"
+admin_email = "env(SUPABASE_AUTH_SMTP_ADMIN_EMAIL)"
+sender_name = "Atomic CRM"
 
 [auth.sms]
 # Allow/disallow new user signups via SMS to your project.

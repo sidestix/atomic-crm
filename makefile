@@ -7,7 +7,16 @@ install: package.json ## install dependencies
 	npm install;
 
 start-supabase: ## start supabase locally
-	npx supabase start
+	@bash -c 'if [ -f supabase/.env ]; then \
+		echo "Loading environment variables from supabase/.env..."; \
+		set -a; \
+		source supabase/.env; \
+		set +a; \
+		npx supabase start; \
+	else \
+		echo "Warning: supabase/.env not found. Starting Supabase without SMTP configuration."; \
+		npx supabase start; \
+	fi'
 
 start-supabase-functions: ## start the supabase Functions watcher
 	npx supabase functions serve --env-file supabase/functions/.env.development

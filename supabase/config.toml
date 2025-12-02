@@ -100,16 +100,14 @@ subject = "Reset your Atomic CRM Password"
 content_path = "./supabase/templates/recovery.html"
 
 # SMTP Configuration for sending emails via Resend
-# Set these environment variables before starting Supabase:
-# SUPABASE_AUTH_SMTP_PASS=your-resend-api-key
-# SUPABASE_AUTH_SMTP_ADMIN_EMAIL=your-sender-email@yourdomain.com
-[auth.smtp]
-enabled = true
+# According to: https://supabase.com/docs/guides/local-development/cli/config#auth.email.smtp.user
+[auth.email.smtp]
 host = "smtp.resend.com"
 port = 465
 user = "resend"
-pass = "env(SUPABASE_AUTH_SMTP_PASS)"
-admin_email = "env(SUPABASE_AUTH_SMTP_ADMIN_EMAIL)"
+# Use environment variable for the API key (DO NOT commit secrets to git)
+pass = "env(GOTRUE_SMTP_PASS)"
+admin_email = "noreply@notifications.sidestix.com"
 sender_name = "Atomic CRM"
 
 [auth.sms]

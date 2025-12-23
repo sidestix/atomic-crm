@@ -1,14 +1,5 @@
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -35,6 +26,7 @@ import { SaleName } from "../sales/SaleName";
 import type { ContactNote, DealNote } from "../types";
 import { NoteAttachments } from "./NoteAttachments";
 import { NoteInputs } from "./NoteInputs";
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 
 export const Note = ({
   showStatus,
@@ -51,7 +43,6 @@ export const Note = ({
   const [isHover, setHover] = useState(false);
   const [isEditing, setEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [deleteInput, setDeleteInput] = useState('');
   const [isBeingDeleted, setIsBeingDeleted] = useState(false);
   const resource = useResourceContext();
   const notify = useNotify();
@@ -75,18 +66,14 @@ export const Note = ({
   };
 
   const handleDeleteConfirm = () => {
-    if (deleteInput === 'DELETE') {
       deleteNote();
       setShowDeleteDialog(false);
       setIsBeingDeleted(false);
-      setDeleteInput('');
-    }
   };
 
   const handleDeleteCancel = () => {
     setIsBeingDeleted(false);
     setShowDeleteDialog(false);
-    setDeleteInput('');
   };
 
   const handleEnterEditMode = () => {
@@ -148,6 +135,7 @@ export const Note = ({
             source="sales_id"
             reference="sales"
             link={false}
+            empty="Act!"
           >
             <WithRecord render={(record) => <SaleName sale={record} />} />
           </ReferenceField>{" "}
@@ -234,61 +222,15 @@ export const Note = ({
     </div>
     
     <DeleteConfirmationDialog
-      open={showDeleteDialog}
-      onOpenChange={setShowDeleteDialog}
-      deleteInput={deleteInput}
-      setDeleteInput={setDeleteInput}
+      isOpen={showDeleteDialog}
+      onClose={handleDeleteCancel}
       onConfirm={handleDeleteConfirm}
-      onCancel={handleDeleteCancel}
+      title="Delete Note"
+      description="Are you sure you want to delete this note? This action cannot be undone."
+      resourceName="note"
     />
     </>
   );
 };
 
-// Delete Confirmation Dialog Component
-const DeleteConfirmationDialog = ({ 
-  open, 
-  onOpenChange, 
-  deleteInput, 
-  setDeleteInput, 
-  onConfirm, 
-  onCancel 
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  deleteInput: string;
-  setDeleteInput: (value: string) => void;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) => (
-  <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>Delete Note</DialogTitle>
-        <DialogDescription>
-          This action cannot be undone. Type <strong>DELETE</strong> to confirm.
-        </DialogDescription>
-      </DialogHeader>
-      <div className="py-4">
-        <Input
-          placeholder="Type DELETE to confirm"
-          value={deleteInput}
-          onChange={(e) => setDeleteInput(e.target.value)}
-          className="w-full"
-        />
-      </div>
-      <DialogFooter>
-        <Button variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button
-          variant="destructive"
-          onClick={onConfirm}
-          disabled={deleteInput !== 'DELETE'}
-        >
-          Delete Note
-        </Button>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
-);
+

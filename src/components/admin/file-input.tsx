@@ -7,6 +7,7 @@ import {
   type ReactElement,
   type ReactNode,
   useEffect,
+  useState,
 } from "react";
 import type { InputProps } from "ra-core";
 import {
@@ -28,6 +29,7 @@ import { cn } from "@/lib/utils";
 import { FormError, FormField, FormLabel } from "@/components/admin/form";
 import { InputHelperText } from "@/components/admin/input-helper-text";
 import { Button } from "@/components/ui/button";
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 
 export const FileInput = (props: FileInputProps) => {
   const {
@@ -286,6 +288,7 @@ export const FileInputPreview = (props: FileInputPreviewProps) => {
   } = props;
 
   const translate = useTranslate();
+  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -297,20 +300,51 @@ export const FileInputPreview = (props: FileInputPreviewProps) => {
     };
   }, [file]);
 
+  const handleRemoveClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setShowConfirm(true);
+  };
+
+  const handleConfirm = () => {
+    onRemove();
+    setShowConfirm(false);
+  };
+
+  const handleCancel = () => {
+    setShowConfirm(false);
+  };
+
+  // Get file name for display
+  const fileName = file?.title || file?.name || "file";
+
   return (
-    <div className={cn("flex flex-row gap-1", className)} {...rest}>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-6 w-6 rounded-full shadow-sm cursor-pointer"
-        onClick={onRemove}
-        aria-label={translate("ra.action.delete")}
-        title={translate("ra.action.delete")}
-      >
-        <RemoveIcon className="h-4 w-4" />
-      </Button>
-      {children}
-    </div>
+    <>
+      <div className={cn("flex flex-row gap-1", className)} {...rest}>
+        <Button
+          variant="ghost"
+          size="icon"
+          type="button"
+          className="h-6 w-6 rounded-full shadow-sm cursor-pointer"
+          onClick={handleRemoveClick}
+          aria-label={translate("ra.action.delete")}
+          title={translate("ra.action.delete")}
+        >
+          <RemoveIcon className="h-4 w-4" />
+        </Button>
+        {children}
+      </div>
+
+      <DeleteConfirmationDialog
+        isOpen={showConfirm}
+        onClose={handleCancel}
+        onConfirm={handleConfirm}
+        title="Delete file"
+        description={`Are you sure you want to delete "${fileName}"? This action cannot be undone.`}
+        resourceName="file"
+        confirmText="DELETE"
+      />
+    </>
   );
 };
 

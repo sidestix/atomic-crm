@@ -19,6 +19,7 @@
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
     "@hookform/resolvers": "^5.1.1",
+    "@inquirer/prompts": "^8.1.0",
     "@nivo/bar": "^0.99.0",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-avatar": "^1.1.10",
@@ -42,6 +43,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "diacritic": "^0.0.2",
+    "execa": "^9.6.1",
     "faker": "^5.5.3",
     "inflection": "^3.0.2",
     "jsonexport": "^3.2.0",

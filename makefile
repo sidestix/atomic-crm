@@ -27,6 +27,22 @@ supabase-migrate-database: ## apply the migrations to the database
 supabase-reset-database: ## reset (and clear!) the database
 	npx supabase db reset
 
+backup-database: ## create a database backup (requires BACKUP_DIR env var, set inline)
+	node scripts/backup-database.mjs
+
+restore-database: ## restore database from backup (usage: make restore-database BACKUP_PREFIX=backup-2024-01-15-120000)
+	@if [ -z "$$BACKUP_PREFIX" ]; then \
+		echo "Error: BACKUP_PREFIX environment variable is not set."; \
+		echo "Usage: make restore-database BACKUP_PREFIX=backup-2024-01-15-120000"; \
+		echo "Or provide full path: make restore-database BACKUP_PREFIX=/path/to/backups/backup-2024-01-15-120000"; \
+		echo "Note: BACKUP_DIR must be set if using just the prefix."; \
+		exit 1; \
+	fi
+	node scripts/restore-database.mjs $$BACKUP_PREFIX
+
+list-backups: ## list available backups (requires BACKUP_DIR env var, set inline)
+	node scripts/list-backups.mjs
+
 start-app: ## start the app locally
 	npm run dev
 

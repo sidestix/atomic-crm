@@ -120,6 +120,73 @@ try {
             stdio: 'inherit',
         }
     );
+    
+    // Filter out Supabase system tables from the data dump
+    // Keep: all public schema tables, storage.buckets, storage.objects
+    // Exclude: storage system tables (buckets_vectors, vector_indexes, etc.)
+    console.log('Filtering out Supabase system tables...');
+    const dataContent = fs.readFileSync(dataPath, 'utf-8');
+    const systemTablesToExclude = [
+        'buckets_vectors',
+        'vector_indexes',
+        'iceberg_namespaces',
+        'iceberg_tables',
+        'buckets_analytics',
+        'prefixes',
+        's3_multipart_uploads',
+        's3_multipart_uploads_parts',
+    ];
+    
+    // Split content into sections (each table has a section starting with "-- Data for Name:")
+    const lines = dataContent.split('\n');
+    const filteredLines = [];
+    let skipSection = false;
+    let currentTable = null;
+    
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        
+        // Check if this is the start of a new table section
+        const tableMatch = line.match(/^-- Data for Name: ([^;]+); Type: TABLE DATA; Schema: storage;/);
+        if (tableMatch) {
+            currentTable = tableMatch[1].trim();
+            // Check if this is a system table we want to exclude
+            if (systemTablesToExclude.includes(currentTable)) {
+                skipSection = true;
+                continue; // Skip the header line
+            }
+            // If it's storage.buckets or storage.objects, or any public schema table, keep it
+            skipSection = false;
+            filteredLines.push(line);
+            continue;
+        }
+        
+        // If we're in a section to skip, continue until we hit the end of this table's COPY block
+        if (skipSection) {
+            // Check if we've reached the end of this table's COPY block
+            // The COPY block ends with a line containing only "\." (backslash-dot)
+            if (line === '\\.' || line.trim() === '\\.') {
+                // After the "\." line, check if next non-empty line starts a new table section
+                // If so, we'll stop skipping on the next iteration
+                let j = i + 1;
+                while (j < lines.length && lines[j].trim() === '') {
+                    j++;
+                }
+                if (j < lines.length && lines[j].startsWith('-- Data for Name:')) {
+                    // Next iteration will see the new table header and set skipSection = false
+                    skipSection = false;
+                }
+            }
+            continue; // Skip this line
+        }
+        
+        // Keep this line
+        filteredLines.push(line);
+    }
+    
+    // Write the filtered content back
+    fs.writeFileSync(dataPath, filteredLines.join('\n'), 'utf-8');
+    console.log(`✓ Filtered out ${systemTablesToExclude.length} Supabase system table(s)`);
 
     // Calculate total backup size
     const rolesStats = fs.existsSync(rolesPath) ? fs.statSync(rolesPath) : { size: 0 };

@@ -130,9 +130,89 @@ try {
     const containerName = 'supabase_db_atomic-crm-demo';
     console.log('✓ Database connection ready');
 
+    // Drop all existing objects in schemas that will be restored
+    // This ensures a clean restore even if migrations have already created objects
+    // We drop public schema completely, but for auth and storage we only truncate tables
+    // since those schemas are managed by Supabase and we can't drop them
+    console.log('Step 2: Dropping existing objects...');
+    const dropSQL = `
+-- Drop all objects in public schema (our app schema)
+DROP SCHEMA IF EXISTS public CASCADE;
+CREATE SCHEMA public;
+GRANT ALL ON SCHEMA public TO postgres;
+GRANT ALL ON SCHEMA public TO public;
+
+-- Truncate auth schema tables (Supabase manages this schema, we can't drop it)
+DO $$
+BEGIN
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'auth' AND table_name = 'audit_log_entries') THEN
+        TRUNCATE TABLE auth.audit_log_entries CASCADE;
+    END IF;
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'auth' AND table_name = 'flow_state') THEN
+        TRUNCATE TABLE auth.flow_state CASCADE;
+    END IF;
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'auth' AND table_name = 'users') THEN
+        TRUNCATE TABLE auth.users CASCADE;
+    END IF;
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'auth' AND table_name = 'identities') THEN
+        TRUNCATE TABLE auth.identities CASCADE;
+    END IF;
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'auth' AND table_name = 'instances') THEN
+        TRUNCATE TABLE auth.instances CASCADE;
+    END IF;
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'auth' AND table_name = 'sessions') THEN
+        TRUNCATE TABLE auth.sessions CASCADE;
+    END IF;
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'auth' AND table_name = 'mfa_amr_claims') THEN
+        TRUNCATE TABLE auth.mfa_amr_claims CASCADE;
+    END IF;
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'auth' AND table_name = 'mfa_factors') THEN
+        TRUNCATE TABLE auth.mfa_factors CASCADE;
+    END IF;
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'auth' AND table_name = 'mfa_challenges') THEN
+        TRUNCATE TABLE auth.mfa_challenges CASCADE;
+    END IF;
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'auth' AND table_name = 'refresh_tokens') THEN
+        TRUNCATE TABLE auth.refresh_tokens CASCADE;
+    END IF;
+END $$;
+
+-- Truncate storage schema tables (Supabase manages this schema, we can't drop it)
+-- Only truncate buckets and objects, not system tables
+DO $$
+BEGIN
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'storage' AND table_name = 'buckets') THEN
+        TRUNCATE TABLE storage.buckets CASCADE;
+    END IF;
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'storage' AND table_name = 'objects') THEN
+        TRUNCATE TABLE storage.objects CASCADE;
+    END IF;
+END $$;
+`;
+
+    await execa(
+        'docker',
+        [
+            'exec',
+            '-i',
+            containerName,
+            'psql',
+            '--host=localhost',
+            '--port=5432',
+            '--username=postgres',
+            '--dbname=postgres',
+        ],
+        {
+            input: dropSQL,
+            stdio: ['pipe', 'inherit', 'inherit'],
+            env: { ...process.env, PGPASSWORD: 'postgres' },
+        }
+    );
+    console.log('✓ Existing objects dropped');
+
     // Restore using official Supabase approach
     // Following: https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore
-    console.log('Step 2: Restoring from backup files...');
+    console.log('Step 3: Restoring from backup files...');
     console.log('  This will restore roles, schema, and data in a single transaction.');
     console.log('  Triggers will be disabled during data restore to prevent conflicts.');
     
@@ -147,10 +227,27 @@ try {
     const schemaContent = fs.readFileSync(schemaPath, 'utf-8');
     const dataContent = fs.readFileSync(dataPath, 'utf-8');
     
-    // Combine with proper separators and trigger disable command
+    // Truncate storage tables before restoring data to avoid conflicts
+    // The schema restore may create storage tables with default data
+    const truncateStorageSQL = `
+-- Truncate storage tables before restoring data
+DO $$
+BEGIN
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'storage' AND table_name = 'buckets') THEN
+        TRUNCATE TABLE storage.buckets CASCADE;
+    END IF;
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'storage' AND table_name = 'objects') THEN
+        TRUNCATE TABLE storage.objects CASCADE;
+    END IF;
+END $$;
+`;
+    
+    // Combine SQL files - run everything as postgres (superuser)
+    // postgres has all permissions needed for COPY operations on all tables, including storage tables
     const combinedSQL = [
         rolesContent,
         schemaContent,
+        truncateStorageSQL,
         'SET session_replication_role = replica;',
         dataContent,
     ].join('\n\n');

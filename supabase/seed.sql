@@ -1,3 +1,4 @@
+/*
 -- Insert test companies first
 INSERT INTO companies (name, sector, website, city, "stateAbbr", description) VALUES 
 ('Acme Corp', 'Technology', 'https://acme.com', 'San Francisco', 'CA', 'Leading software company'),
@@ -152,3 +153,4 @@ INSERT INTO tasks (company_id, type, text, due_date, sales_id) VALUES
 (1, 'email', 'Send contract renewal information', '2024-01-22', NULL),
 (2, 'call', 'Follow up on partnership discussion', '2024-01-18', NULL),
 (2, 'email', 'Share product roadmap', '2024-01-19', NULL);
+*/

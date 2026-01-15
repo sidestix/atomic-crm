@@ -282,13 +282,29 @@ try {
                         { stdin: pvProcess.stdout, stdout: 'pipe', stderr: 'pipe' }
                     );
 
-                    // Wait for extractProcess first (most important), then others
-                    // This ensures the stream completes before we check for errors
+                    // Wait for all processes together, but prioritize extractProcess errors
+                    // This prevents broken pipes while ensuring we catch extraction errors
                     try {
-                        await extractProcess;
-                        await Promise.all([tarProcess, pvProcess]);
+                        const results = await Promise.allSettled([tarProcess, pvProcess, extractProcess]);
+                        
+                        // Check extractProcess first (most important)
+                        const extractResult = results[2]; // extractProcess is third
+                        if (extractResult.status === 'rejected') {
+                            // If extract fails, kill other processes and throw
+                            tarProcess.kill();
+                            pvProcess.kill();
+                            throw extractResult.reason;
+                        }
+                        
+                        // Check other processes for errors
+                        if (results[0].status === 'rejected') {
+                            throw new Error(`tar creation failed: ${results[0].reason.message}`);
+                        }
+                        if (results[1].status === 'rejected') {
+                            throw new Error(`pv failed: ${results[1].reason.message}`);
+                        }
                     } catch (error) {
-                        // If extract fails, kill other processes and rethrow
+                        // Cleanup on any error
                         tarProcess.kill();
                         pvProcess.kill();
                         throw error;

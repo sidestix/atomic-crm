@@ -42,10 +42,11 @@ if (path.isAbsolute(backupInput)) {
     backupPrefix = backupInput;
 }
 
-// Construct paths to the three backup files
+// Construct paths to the backup files
 const rolesPath = path.join(backupDir, `${backupPrefix}-roles.sql`);
 const schemaPath = path.join(backupDir, `${backupPrefix}-schema.sql`);
 const dataPath = path.join(backupDir, `${backupPrefix}-data.sql`);
+const attachmentsBackupDir = path.join(backupDir, `${backupPrefix}-attachments`);
 
 // Validate all backup files exist
 const missingFiles = [];
@@ -63,6 +64,9 @@ if (missingFiles.length > 0) {
     process.exit(1);
 }
 
+// Check if attachments backup exists (optional)
+const hasAttachments = fs.existsSync(attachmentsBackupDir);
+
 // Validate backup files are readable
 for (const filePath of [rolesPath, schemaPath, dataPath]) {
     try {
@@ -73,29 +77,56 @@ for (const filePath of [rolesPath, schemaPath, dataPath]) {
     }
 }
 
+// Helper function to calculate directory size
+const getDirSize = (dirPath) => {
+    if (!fs.existsSync(dirPath)) return 0;
+    let totalSize = 0;
+    try {
+        const files = fs.readdirSync(dirPath);
+        for (const file of files) {
+            const filePath = path.join(dirPath, file);
+            const stats = fs.statSync(filePath);
+            if (stats.isDirectory()) {
+                totalSize += getDirSize(filePath);
+            } else {
+                totalSize += stats.size;
+            }
+        }
+    } catch (error) {
+        // Ignore errors reading directory
+    }
+    return totalSize;
+};
+
 // Get file stats for display
 const rolesStats = fs.statSync(rolesPath);
 const schemaStats = fs.statSync(schemaPath);
 const dataStats = fs.statSync(dataPath);
-const totalSizeMB = ((rolesStats.size + schemaStats.size + dataStats.size) / (1024 * 1024)).toFixed(2);
+const attachmentsSize = hasAttachments ? getDirSize(attachmentsBackupDir) : 0;
+const totalSizeMB = ((rolesStats.size + schemaStats.size + dataStats.size + attachmentsSize) / (1024 * 1024)).toFixed(2);
+const totalSizeGB = ((rolesStats.size + schemaStats.size + dataStats.size + attachmentsSize) / (1024 * 1024 * 1024)).toFixed(2);
 const backupDate = dataStats.mtime.toLocaleString();
 
-console.log('Database Restore');
-console.log('================');
+console.log('Database and Attachments Restore');
+console.log('================================');
 console.log(`Backup prefix: ${backupPrefix}`);
 console.log(`Backup directory: ${backupDir}`);
 console.log(`  - Roles: ${path.basename(rolesPath)} (${(rolesStats.size / (1024 * 1024)).toFixed(2)} MB)`);
 console.log(`  - Schema: ${path.basename(schemaPath)} (${(schemaStats.size / (1024 * 1024)).toFixed(2)} MB)`);
 console.log(`  - Data: ${path.basename(dataPath)} (${(dataStats.size / (1024 * 1024)).toFixed(2)} MB)`);
-console.log(`Total size: ${totalSizeMB} MB`);
+if (hasAttachments) {
+    console.log(`  - Attachments: ${path.basename(attachmentsBackupDir)} (${(attachmentsSize / (1024 * 1024 * 1024)).toFixed(2)} GB)`);
+}
+console.log(`Total size: ${totalSizeGB} GB (${totalSizeMB} MB)`);
 console.log(`Date: ${backupDate}`);
 console.log('');
 
 // Warning about destructive operation
 console.log('⚠️  WARNING: This operation will:');
 console.log('   1. Replace the entire database with the backup');
-console.log('   2. All current data will be lost');
-console.log('   3. This cannot be undone!');
+console.log('   2. Replace all attachments with the backup');
+console.log('   3. All current data will be lost');
+console.log('   4. This cannot be undone!');
 console.log('');
 
 // Confirm before proceeding
@@ -275,8 +306,133 @@ END $$;
     );
     
     console.log('✓ Database restore completed');
+    
+    // Restore attachments if backup exists
+    if (hasAttachments) {
+        console.log('\nStep 4: Restoring attachments...');
+        const storageContainer = 'supabase_storage_atomic-crm-demo';
+        const attachmentsPath = '/mnt/stub/stub/attachments';
+        
+        // Check if storage container is running
+        try {
+            const { stdout } = await execa('docker', ['ps', '--filter', `name=${storageContainer}`, '--format', '{{.Names}}']);
+            if (!stdout.includes(storageContainer)) {
+                console.warn(`⚠️  Warning: Storage container ${storageContainer} is not running. Skipping attachments restore.`);
+            } else {
+                console.log('  Clearing existing attachments...');
+                // Remove existing attachments directory in container
+                await execa('docker', ['exec', storageContainer, 'rm', '-rf', attachmentsPath]);
+                
+                // Recreate the parent directory structure
+                await execa('docker', ['exec', storageContainer, 'mkdir', '-p', '/mnt/stub/stub']);
+                
+                // Get total size for progress calculation
+                const attachmentsSizeGB = (attachmentsSize / (1024 * 1024 * 1024)).toFixed(2);
+                console.log(`  Restoring ${attachmentsSizeGB} GB of attachments...`);
+
+                // Check if pv (pipe viewer) is available for progress indication
+                let usePv = false;
+                try {
+                    await execa('which', ['pv'], { stdout: 'pipe', stderr: 'pipe' });
+                    usePv = true;
+                } catch (error) {
+                    // pv not available, will use fallback progress monitoring
+                }
+
+                if (usePv && attachmentsSize > 0) {
+                    // Use pv for progress indication
+                    const tarProcess = execa(
+                        'tar',
+                        ['cf', '-', '-C', attachmentsBackupDir, 'attachments'],
+                        { stdout: 'pipe' }
+                    );
+
+                    // Pipe through pv to show progress
+                    // Remove -b flag which can cause premature stream closure
+                    const pvProcess = execa(
+                        'pv',
+                        ['-s', attachmentsSize.toString(), '-p', '-t', '-e', '-r'],
+                        { stdin: tarProcess.stdout, stdout: 'pipe', stderr: 'inherit' }
+                    );
+
+                    // Extract tar stream into container
+                    const extractProcess = execa(
+                        'docker',
+                        ['exec', '-i', storageContainer, 'tar', 'xf', '-', '-C', '/mnt/stub/stub'],
+                        { stdin: pvProcess.stdout, stdout: 'pipe', stderr: 'pipe' }
+                    );
+
+                    // Wait for extractProcess first (most important), then others
+                    // This ensures the stream completes before we check for errors
+                    try {
+                        await extractProcess;
+                        await Promise.all([tarProcess, pvProcess]);
+                    } catch (error) {
+                        // If extract fails, kill other processes and rethrow
+                        tarProcess.kill();
+                        pvProcess.kill();
+                        throw error;
+                    }
+                } else {
+                    // Fallback: Monitor progress by checking container size periodically
+                    if (!usePv) {
+                        console.log('  (Install "pv" for detailed progress: brew install pv)');
+                    }
+                    
+                    const tarProcess = execa(
+                        'tar',
+                        ['cf', '-', '-C', attachmentsBackupDir, 'attachments'],
+                        { stdout: 'pipe' }
+                    );
+
+                    const extractProcess = execa(
+                        'docker',
+                        ['exec', '-i', storageContainer, 'tar', 'xf', '-', '-C', '/mnt/stub/stub'],
+                        { stdin: tarProcess.stdout, stdout: 'pipe', stderr: 'pipe' }
+                    );
+
+                    // Monitor progress in background
+                    const progressInterval = setInterval(async () => {
+                        try {
+                            const { stdout: currentSizeStr } = await execa(
+                                'docker',
+                                ['exec', storageContainer, 'sh', '-c', `du -sb ${attachmentsPath} 2>/dev/null | cut -f1 || echo 0`]
+                            );
+                            const currentSize = parseInt(currentSizeStr.trim(), 10) || 0;
+                            const currentSizeGB = (currentSize / (1024 * 1024 * 1024)).toFixed(2);
+                            const percent = attachmentsSize > 0 ? ((currentSize / attachmentsSize) * 100).toFixed(1) : '0.0';
+                            process.stdout.write(`\r  Progress: ${percent}% (${currentSizeGB} GB / ${attachmentsSizeGB} GB)`);
+                        } catch (error) {
+                            // Ignore errors in progress monitoring
+                        }
+                    }, 2000); // Update every 2 seconds
+
+                    try {
+                        await Promise.all([tarProcess, extractProcess]);
+                        clearInterval(progressInterval);
+                        process.stdout.write('\r  Progress: 100.0% - Complete!\n');
+                    } catch (error) {
+                        clearInterval(progressInterval);
+                        process.stdout.write('\n');
+                        throw error;
+                    }
+                }
+                
+                console.log('✓ Attachments restore completed');
+            }
+        } catch (error) {
+            console.error('  ✗ Attachments restore failed!');
+            console.error(`  ${error.message}`);
+            if (error.stderr) {
+                console.error(`  Error details: ${error.stderr}`);
+            }
+            console.error('  Database has been restored, but attachments restore failed.');
+            console.error('  You may need to restore attachments manually.');
+        }
+    }
+    
     console.log('\n✓ Restore process completed successfully!');
-    console.log('Your database has been restored from the backup.');
+    console.log('Your database and attachments have been restored from the backup.');
     
 } catch (error) {
     console.error('\n✗ Restore failed!');
@@ -292,4 +448,3 @@ END $$;
     
     process.exit(1);
 }
-

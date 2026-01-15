@@ -36,6 +36,27 @@ try {
     process.exit(1);
 }
 
+// Helper function to calculate directory size recursively
+const getDirSize = (dirPath) => {
+    if (!fs.existsSync(dirPath)) return 0;
+    let totalSize = 0;
+    try {
+        const files = fs.readdirSync(dirPath);
+        for (const file of files) {
+            const filePath = path.join(dirPath, file);
+            const stats = fs.statSync(filePath);
+            if (stats.isDirectory()) {
+                totalSize += getDirSize(filePath);
+            } else {
+                totalSize += stats.size;
+            }
+        }
+    } catch (error) {
+        // Ignore errors reading directory
+    }
+    return totalSize;
+};
+
 // Generate backup filenames with timestamp
 const now = new Date();
 const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
@@ -43,12 +64,14 @@ const backupPrefix = `backup-${timestamp}`;
 const rolesPath = path.join(BACKUP_DIR, `${backupPrefix}-roles.sql`);
 const schemaPath = path.join(BACKUP_DIR, `${backupPrefix}-schema.sql`);
 const dataPath = path.join(BACKUP_DIR, `${backupPrefix}-data.sql`);
+const attachmentsBackupDir = path.join(BACKUP_DIR, `${backupPrefix}-attachments`);
 
-console.log(`Starting database backup...`);
+console.log(`Starting database and attachments backup...`);
 console.log(`Backup files will be saved to: ${BACKUP_DIR}`);
 console.log(`  - Roles: ${path.basename(rolesPath)}`);
 console.log(`  - Schema: ${path.basename(schemaPath)}`);
 console.log(`  - Data: ${path.basename(dataPath)}`);
+console.log(`  - Attachments: ${path.basename(attachmentsBackupDir)}`);
 
 try {
     // Check if Supabase is running
@@ -188,27 +211,190 @@ try {
     fs.writeFileSync(dataPath, filteredLines.join('\n'), 'utf-8');
     console.log(`✓ Filtered out ${systemTablesToExclude.length} Supabase system table(s)`);
 
+    // Backup attachments
+    console.log('\nBacking up attachments...');
+    const storageContainer = 'supabase_storage_atomic-crm-demo';
+    const attachmentsPath = '/mnt/stub/stub/attachments';
+    
+    // Check if storage container is running
+    try {
+        const { stdout } = await execa('docker', ['ps', '--filter', `name=${storageContainer}`, '--format', '{{.Names}}']);
+        if (!stdout.includes(storageContainer)) {
+            console.warn(`⚠️  Warning: Storage container ${storageContainer} is not running. Skipping attachments backup.`);
+        } else {
+            // Check if attachments directory exists in container
+            try {
+                await execa('docker', ['exec', storageContainer, 'test', '-d', attachmentsPath]);
+                
+                // Create backup directory
+                if (!fs.existsSync(attachmentsBackupDir)) {
+                    fs.mkdirSync(attachmentsBackupDir, { recursive: true });
+                }
+
+                // Count files and get total size for progress indication
+                console.log('  Analyzing attachments...');
+                const { stdout: fileCount } = await execa(
+                    'docker',
+                    ['exec', storageContainer, 'sh', '-c', `find ${attachmentsPath} -type f | wc -l`]
+                );
+                const numFiles = parseInt(fileCount.trim(), 10) || 0;
+                
+                // Get total size for progress calculation
+                const { stdout: totalSizeStr } = await execa(
+                    'docker',
+                    ['exec', storageContainer, 'sh', '-c', `du -sb ${attachmentsPath} 2>/dev/null | cut -f1`]
+                );
+                const totalSize = parseInt(totalSizeStr.trim(), 10) || 0;
+                const totalSizeGB = (totalSize / (1024 * 1024 * 1024)).toFixed(2);
+                
+                console.log(`  Found ${numFiles.toLocaleString()} files (${totalSizeGB} GB total)`);
+                console.log('  Copying attachments...');
+
+                // Check if pv (pipe viewer) is available for progress indication
+                let usePv = false;
+                try {
+                    await execa('which', ['pv'], { stdout: 'pipe', stderr: 'pipe' });
+                    usePv = true;
+                } catch (error) {
+                    // pv not available, will use fallback progress monitoring
+                }
+
+                if (usePv && totalSize > 0) {
+                    // Use pv for progress indication
+                    const tarProcess = execa(
+                        'docker',
+                        ['exec', storageContainer, 'tar', 'cf', '-', '-C', '/mnt/stub/stub', 'attachments'],
+                        { stdout: 'pipe' }
+                    );
+
+                    // Pipe through pv to show progress
+                    // Remove -b flag which can cause premature stream closure
+                    const pvProcess = execa(
+                        'pv',
+                        ['-s', totalSize.toString(), '-p', '-t', '-e', '-r'],
+                        { stdin: tarProcess.stdout, stdout: 'pipe', stderr: 'inherit' }
+                    );
+
+                    // Extract the tar stream to the backup directory
+                    const extractProcess = execa(
+                        'tar',
+                        ['xf', '-', '-C', attachmentsBackupDir],
+                        { stdin: pvProcess.stdout, stdout: 'pipe', stderr: 'pipe' }
+                    );
+
+                    // Wait for extractProcess first (most important), then others
+                    // This ensures the stream completes before we check for errors
+                    try {
+                        await extractProcess;
+                        await Promise.all([tarProcess, pvProcess]);
+                    } catch (error) {
+                        // If extract fails, kill other processes and rethrow
+                        tarProcess.kill();
+                        pvProcess.kill();
+                        throw error;
+                    }
+                } else {
+                    // Fallback: Monitor progress by checking destination size periodically
+                    if (!usePv) {
+                        console.log('  (Install "pv" for detailed progress: brew install pv)');
+                    }
+                    
+                    const tarProcess = execa(
+                        'docker',
+                        ['exec', storageContainer, 'tar', 'cf', '-', '-C', '/mnt/stub/stub', 'attachments'],
+                        { stdout: 'pipe' }
+                    );
+
+                    const extractProcess = execa(
+                        'tar',
+                        ['xf', '-', '-C', attachmentsBackupDir],
+                        { stdin: tarProcess.stdout, stdout: 'pipe', stderr: 'pipe' }
+                    );
+
+                    // Monitor progress in background
+                    const progressInterval = setInterval(() => {
+                        const currentSize = getDirSize(attachmentsBackupDir);
+                        const currentSizeGB = (currentSize / (1024 * 1024 * 1024)).toFixed(2);
+                        const percent = totalSize > 0 ? ((currentSize / totalSize) * 100).toFixed(1) : '0.0';
+                        process.stdout.write(`\r  Progress: ${percent}% (${currentSizeGB} GB / ${totalSizeGB} GB)`);
+                    }, 2000); // Update every 2 seconds
+
+                    try {
+                        await Promise.all([tarProcess, extractProcess]);
+                        clearInterval(progressInterval);
+                        process.stdout.write('\r  Progress: 100.0% - Complete!\n');
+                    } catch (error) {
+                        clearInterval(progressInterval);
+                        process.stdout.write('\n');
+                        throw error;
+                    }
+                }
+
+                // Calculate attachments backup size
+                const attachmentsSize = getDirSize(attachmentsBackupDir);
+                const attachmentsSizeGB = (attachmentsSize / (1024 * 1024 * 1024)).toFixed(2);
+                const attachmentsSizeMB = (attachmentsSize / (1024 * 1024)).toFixed(2);
+
+                console.log(`  ✓ Attachments backup completed!`);
+                console.log(`    Files: ${numFiles.toLocaleString()}`);
+                console.log(`    Size: ${attachmentsSizeGB} GB (${attachmentsSizeMB} MB)`);
+            } catch (error) {
+                console.warn(`  ⚠️  Warning: Could not backup attachments: ${error.message}`);
+                console.warn(`  Continuing with database backup only...`);
+            }
+        }
+    } catch (error) {
+        console.warn(`  ⚠️  Warning: Could not access storage container: ${error.message}`);
+        console.warn(`  Continuing with database backup only...`);
+    }
+
     // Calculate total backup size
     const rolesStats = fs.existsSync(rolesPath) ? fs.statSync(rolesPath) : { size: 0 };
     const schemaStats = fs.existsSync(schemaPath) ? fs.statSync(schemaPath) : { size: 0 };
     const dataStats = fs.existsSync(dataPath) ? fs.statSync(dataPath) : { size: 0 };
-    const totalSizeMB = ((rolesStats.size + schemaStats.size + dataStats.size) / (1024 * 1024)).toFixed(2);
+    const attachmentsStats = fs.existsSync(attachmentsBackupDir) ? { size: getDirSize(attachmentsBackupDir) } : { size: 0 };
+    const totalSizeMB = ((rolesStats.size + schemaStats.size + dataStats.size + attachmentsStats.size) / (1024 * 1024)).toFixed(2);
+    const totalSizeGB = ((rolesStats.size + schemaStats.size + dataStats.size + attachmentsStats.size) / (1024 * 1024 * 1024)).toFixed(2);
     
-    console.log(`✓ Backup completed successfully!`);
+    console.log(`\n✓ Backup completed successfully!`);
     console.log(`  Roles: ${path.basename(rolesPath)} (${(rolesStats.size / (1024 * 1024)).toFixed(2)} MB)`);
     console.log(`  Schema: ${path.basename(schemaPath)} (${(schemaStats.size / (1024 * 1024)).toFixed(2)} MB)`);
     console.log(`  Data: ${path.basename(dataPath)} (${(dataStats.size / (1024 * 1024)).toFixed(2)} MB)`);
-    console.log(`  Total size: ${totalSizeMB} MB`);
+    if (attachmentsStats.size > 0) {
+        console.log(`  Attachments: ${path.basename(attachmentsBackupDir)} (${(attachmentsStats.size / (1024 * 1024 * 1024)).toFixed(2)} GB)`);
+    }
+    console.log(`  Total size: ${totalSizeGB} GB (${totalSizeMB} MB)`);
     console.log(`  Location: ${BACKUP_DIR}`);
 
     // Clean up old backups (older than RETENTION_DAYS)
     // Group backups by timestamp prefix and delete entire backup sets
+    // Safety check: Don't delete backups that are larger than the current backup
     console.log(`\nCleaning up backups older than ${RETENTION_DAYS} days...`);
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - RETENTION_DAYS);
     
+    // Calculate current backup total size (database + attachments)
+    const currentBackupSize = rolesStats.size + schemaStats.size + dataStats.size + attachmentsStats.size;
+    
     const files = fs.readdirSync(BACKUP_DIR);
-    const backupSets = new Map(); // Map of timestamp prefix -> file paths
+    const backupSets = new Map(); // Map of timestamp prefix -> backup info
+    
+    // Helper function to calculate backup set size
+    const calculateBackupSetSize = (prefix) => {
+        let totalSize = 0;
+        const rolesFile = path.join(BACKUP_DIR, `${prefix}-roles.sql`);
+        const schemaFile = path.join(BACKUP_DIR, `${prefix}-schema.sql`);
+        const dataFile = path.join(BACKUP_DIR, `${prefix}-data.sql`);
+        const attachmentsDir = path.join(BACKUP_DIR, `${prefix}-attachments`);
+        
+        if (fs.existsSync(rolesFile)) totalSize += fs.statSync(rolesFile).size;
+        if (fs.existsSync(schemaFile)) totalSize += fs.statSync(schemaFile).size;
+        if (fs.existsSync(dataFile)) totalSize += fs.statSync(dataFile).size;
+        if (fs.existsSync(attachmentsDir)) {
+            totalSize += getDirSize(attachmentsDir);
+        }
+        return totalSize;
+    };
     
     // Group files by backup prefix (backup-TIMESTAMP-*)
     for (const file of files) {
@@ -216,47 +402,101 @@ try {
         if (match) {
             const prefix = match[1];
             if (!backupSets.has(prefix)) {
-                backupSets.set(prefix, []);
+                backupSets.set(prefix, {
+                    files: [],
+                    hasAttachments: fs.existsSync(path.join(BACKUP_DIR, `${prefix}-attachments`))
+                });
             }
-            backupSets.get(prefix).push(file);
+            backupSets.get(prefix).files.push(file);
+        }
+    }
+    
+    // Also check for attachment directories
+    for (const file of files) {
+        const match = file.match(/^(backup-\d{4}-\d{2}-\d{2}-\d{6})-attachments$/);
+        if (match) {
+            const prefix = match[1];
+            if (!backupSets.has(prefix)) {
+                backupSets.set(prefix, { files: [], hasAttachments: true });
+            } else {
+                backupSets.get(prefix).hasAttachments = true;
+            }
         }
     }
     
     let deletedSets = 0;
     let deletedFiles = 0;
+    let skippedSets = 0;
     
     // Delete backup sets older than retention period
-    for (const [prefix, fileList] of backupSets.entries()) {
+    for (const [prefix, backupInfo] of backupSets.entries()) {
         // Check the oldest file in the set to determine age
         let oldestDate = null;
-        for (const file of fileList) {
+        for (const file of backupInfo.files) {
             const filePath = path.join(BACKUP_DIR, file);
-            const fileStats = fs.statSync(filePath);
-            if (!oldestDate || fileStats.mtime < oldestDate) {
-                oldestDate = fileStats.mtime;
+            if (fs.existsSync(filePath)) {
+                const fileStats = fs.statSync(filePath);
+                if (!oldestDate || fileStats.mtime < oldestDate) {
+                    oldestDate = fileStats.mtime;
+                }
             }
         }
         
-        if (oldestDate < cutoffDate) {
+        // Check attachments directory if it exists
+        const attachmentsDir = path.join(BACKUP_DIR, `${prefix}-attachments`);
+        if (fs.existsSync(attachmentsDir)) {
+            const dirStats = fs.statSync(attachmentsDir);
+            if (!oldestDate || dirStats.mtime < oldestDate) {
+                oldestDate = dirStats.mtime;
+            }
+        }
+        
+        if (oldestDate && oldestDate < cutoffDate) {
+            // Safety check: Don't delete if this backup is larger than current backup
+            const backupSetSize = calculateBackupSetSize(prefix);
+            if (backupSetSize > currentBackupSize) {
+                console.log(`  ⚠️  Skipping deletion of ${prefix} (${(backupSetSize / (1024 * 1024 * 1024)).toFixed(2)} GB) - larger than current backup (${(currentBackupSize / (1024 * 1024 * 1024)).toFixed(2)} GB)`);
+                skippedSets++;
+                continue;
+            }
+            
             // Delete all files in this backup set
-            for (const file of fileList) {
+            for (const file of backupInfo.files) {
                 const filePath = path.join(BACKUP_DIR, file);
+                if (fs.existsSync(filePath)) {
+                    try {
+                        fs.unlinkSync(filePath);
+                        deletedFiles++;
+                    } catch (error) {
+                        console.warn(`  Warning: Failed to delete old backup file: ${file}`);
+                        console.warn(`  ${error.message}`);
+                    }
+                }
+            }
+            
+            // Delete attachments directory if it exists
+            if (fs.existsSync(attachmentsDir)) {
                 try {
-                    fs.unlinkSync(filePath);
+                    fs.rmSync(attachmentsDir, { recursive: true, force: true });
                     deletedFiles++;
                 } catch (error) {
-                    console.warn(`  Warning: Failed to delete old backup file: ${file}`);
+                    console.warn(`  Warning: Failed to delete old attachments directory: ${path.basename(attachmentsDir)}`);
                     console.warn(`  ${error.message}`);
                 }
             }
+            
             deletedSets++;
         }
     }
     
     if (deletedSets > 0) {
-        console.log(`✓ Cleaned up ${deletedSets} old backup set(s) (${deletedFiles} files)`);
+        console.log(`✓ Cleaned up ${deletedSets} old backup set(s) (${deletedFiles} files/directories)`);
     } else {
         console.log(`✓ No old backups to clean up`);
+    }
+    
+    if (skippedSets > 0) {
+        console.log(`⚠️  Skipped ${skippedSets} backup set(s) that are larger than current backup (safety check)`);
     }
     
     console.log(`\nBackup process completed successfully!`);
@@ -278,6 +518,15 @@ try {
         }
     }
     
+    // Clean up partial attachments backup directory if it exists
+    if (fs.existsSync(attachmentsBackupDir)) {
+        try {
+            fs.rmSync(attachmentsBackupDir, { recursive: true, force: true });
+            console.log(`Cleaned up partial attachments backup directory: ${path.basename(attachmentsBackupDir)}`);
+        } catch (cleanupError) {
+            console.warn(`Warning: Failed to clean up partial attachments backup directory: ${path.basename(attachmentsBackupDir)}`);
+        }
+    }
+    
     process.exit(1);
 }
-

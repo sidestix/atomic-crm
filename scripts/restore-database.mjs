@@ -373,9 +373,11 @@ END $$;
                 const progressTimer = setInterval(logRestoreProgress, progressIntervalMs);
                 await logRestoreProgress();
                 try {
+                    // Normalize path for Docker on Windows - convert to forward slashes and ensure absolute path
+                    const normalizedBackupPath = path.resolve(backupAttachmentsDir).replace(/\\/g, '/');
                     await execa(
                         'docker',
-                        ['cp', backupAttachmentsDir, `${storageContainer}:${attachmentsPath}`]
+                        ['cp', normalizedBackupPath, `${storageContainer}:${attachmentsPath}`]
                     );
                 } finally {
                     clearInterval(progressTimer);

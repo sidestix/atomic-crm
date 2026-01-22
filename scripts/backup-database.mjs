@@ -248,102 +248,27 @@ try {
                 const totalSizeGB = (totalSize / (1024 * 1024 * 1024)).toFixed(2);
                 
                 console.log(`  Found ${numFiles.toLocaleString()} files (${totalSizeGB} GB total)`);
+                
                 console.log('  Copying attachments...');
 
-                // Check if pv (pipe viewer) is available for progress indication
-                let usePv = false;
+                // Use docker cp for simple, reliable file copying
+                const progressIntervalMs = 5000;
+                const logCopyProgress = () => {
+                    const currentSize = getDirSize(attachmentsBackupDir);
+                    const currentSizeGB = (currentSize / (1024 * 1024 * 1024)).toFixed(2);
+                    const percent = totalSize > 0 ? ((currentSize / totalSize) * 100).toFixed(1) : '0.0';
+                    console.log(`  Progress: ${percent}% (${currentSizeGB} GB / ${totalSizeGB} GB)`);
+                };
+                let progressTimer = setInterval(logCopyProgress, progressIntervalMs);
+                logCopyProgress();
                 try {
-                    await execa('which', ['pv'], { stdout: 'pipe', stderr: 'pipe' });
-                    usePv = true;
-                } catch (error) {
-                    // pv not available, will use fallback progress monitoring
-                }
-
-                if (usePv && totalSize > 0) {
-                    // Use pv for progress indication
-                    const tarProcess = execa(
+                    await execa(
                         'docker',
-                        ['exec', storageContainer, 'tar', 'cf', '-', '-C', '/mnt/stub/stub', 'attachments'],
-                        { stdout: 'pipe' }
+                        ['cp', `${storageContainer}:${attachmentsPath}`, attachmentsBackupDir]
                     );
-
-                    // Pipe through pv to show progress
-                    // Remove -b flag which can cause premature stream closure
-                    const pvProcess = execa(
-                        'pv',
-                        ['-s', totalSize.toString(), '-p', '-t', '-e', '-r'],
-                        { stdin: tarProcess.stdout, stdout: 'pipe', stderr: 'inherit' }
-                    );
-
-                    // Extract the tar stream to the backup directory
-                    const extractProcess = execa(
-                        'tar',
-                        ['xf', '-', '-C', attachmentsBackupDir],
-                        { stdin: pvProcess.stdout, stdout: 'pipe', stderr: 'pipe' }
-                    );
-
-                    // Wait for all processes together, but prioritize extractProcess errors
-                    // This prevents broken pipes while ensuring we catch extraction errors
-                    try {
-                        const results = await Promise.allSettled([tarProcess, pvProcess, extractProcess]);
-                        
-                        // Check extractProcess first (most important)
-                        const extractResult = results[2]; // extractProcess is third
-                        if (extractResult.status === 'rejected') {
-                            // If extract fails, kill other processes and throw
-                            tarProcess.kill();
-                            pvProcess.kill();
-                            throw extractResult.reason;
-                        }
-                        
-                        // Check other processes for errors
-                        if (results[0].status === 'rejected') {
-                            throw new Error(`tar creation failed: ${results[0].reason.message}`);
-                        }
-                        if (results[1].status === 'rejected') {
-                            throw new Error(`pv failed: ${results[1].reason.message}`);
-                        }
-                    } catch (error) {
-                        // Cleanup on any error
-                        tarProcess.kill();
-                        pvProcess.kill();
-                        throw error;
-                    }
-                } else {
-                    // Fallback: Monitor progress by checking destination size periodically
-                    if (!usePv) {
-                        console.log('  (Install "pv" for detailed progress: brew install pv)');
-                    }
-                    
-                    const tarProcess = execa(
-                        'docker',
-                        ['exec', storageContainer, 'tar', 'cf', '-', '-C', '/mnt/stub/stub', 'attachments'],
-                        { stdout: 'pipe' }
-                    );
-
-                    const extractProcess = execa(
-                        'tar',
-                        ['xf', '-', '-C', attachmentsBackupDir],
-                        { stdin: tarProcess.stdout, stdout: 'pipe', stderr: 'pipe' }
-                    );
-
-                    // Monitor progress in background
-                    const progressInterval = setInterval(() => {
-                        const currentSize = getDirSize(attachmentsBackupDir);
-                        const currentSizeGB = (currentSize / (1024 * 1024 * 1024)).toFixed(2);
-                        const percent = totalSize > 0 ? ((currentSize / totalSize) * 100).toFixed(1) : '0.0';
-                        process.stdout.write(`\r  Progress: ${percent}% (${currentSizeGB} GB / ${totalSizeGB} GB)`);
-                    }, 2000); // Update every 2 seconds
-
-                    try {
-                        await Promise.all([tarProcess, extractProcess]);
-                        clearInterval(progressInterval);
-                        process.stdout.write('\r  Progress: 100.0% - Complete!\n');
-                    } catch (error) {
-                        clearInterval(progressInterval);
-                        process.stdout.write('\n');
-                        throw error;
-                    }
+                } finally {
+                    clearInterval(progressTimer);
+                    progressTimer = null;
                 }
 
                 // Calculate attachments backup size
@@ -354,6 +279,82 @@ try {
                 console.log(`  ✓ Attachments backup completed!`);
                 console.log(`    Files: ${numFiles.toLocaleString()}`);
                 console.log(`    Size: ${attachmentsSizeGB} GB (${attachmentsSizeMB} MB)`);
+                
+                // Verify backup completeness by comparing file lists
+                console.log('  Verifying backup completeness...');
+                try {
+                    // Get list of files from Docker volume
+                    const { stdout: dockerFilesStr } = await execa(
+                        'docker',
+                        ['exec', storageContainer, 'sh', '-c', `find ${attachmentsPath} -type f | sed 's|${attachmentsPath}/||' | sort`]
+                    );
+                    const dockerFiles = new Set(dockerFilesStr.trim().split('\n').filter(f => f.trim()));
+                    
+                    // Get list of files from backup (remove 'attachments/' prefix)
+                    const backupFiles = new Set();
+                    const collectBackupFiles = (dir, prefix = '') => {
+                        if (!fs.existsSync(dir)) return;
+                        const entries = fs.readdirSync(dir);
+                        for (const entry of entries) {
+                            const fullPath = path.join(dir, entry);
+                            const stats = fs.statSync(fullPath);
+                            const relativePath = prefix ? `${prefix}/${entry}` : entry;
+                            if (stats.isDirectory()) {
+                                collectBackupFiles(fullPath, relativePath);
+                            } else {
+                                // Remove the 'attachments/' prefix from backup paths to match Docker paths
+                                const normalizedPath = relativePath.replace(/^attachments\//, '');
+                                const baseName = path.basename(normalizedPath);
+                                if (baseName.startsWith('._') || baseName === '.DS_Store') {
+                                    continue;
+                                }
+                                backupFiles.add(normalizedPath);
+                            }
+                        }
+                    };
+                    collectBackupFiles(attachmentsBackupDir);
+                    
+                    // Compare file lists
+                    const missingInBackup = [];
+                    const extraInBackup = [];
+                    
+                    for (const dockerFile of dockerFiles) {
+                        if (!backupFiles.has(dockerFile)) {
+                            missingInBackup.push(dockerFile);
+                        }
+                    }
+                    
+                    for (const backupFile of backupFiles) {
+                        if (!dockerFiles.has(backupFile)) {
+                            extraInBackup.push(backupFile);
+                        }
+                    }
+                    
+                    if (missingInBackup.length === 0 && extraInBackup.length === 0) {
+                        console.log(`    ✓ All ${dockerFiles.size.toLocaleString()} files verified`);
+                    } else {
+                        if (missingInBackup.length > 0) {
+                            console.warn(`    ⚠️  Warning: ${missingInBackup.length} file(s) missing from backup:`);
+                            missingInBackup.slice(0, 10).forEach(file => {
+                                console.warn(`      - ${file}`);
+                            });
+                            if (missingInBackup.length > 10) {
+                                console.warn(`      ... and ${missingInBackup.length - 10} more`);
+                            }
+                        }
+                        if (extraInBackup.length > 0) {
+                            console.warn(`    ⚠️  Warning: ${extraInBackup.length} extra file(s) in backup:`);
+                            extraInBackup.slice(0, 10).forEach(file => {
+                                console.warn(`      - ${file}`);
+                            });
+                            if (extraInBackup.length > 10) {
+                                console.warn(`      ... and ${extraInBackup.length - 10} more`);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.warn(`    ⚠️  Warning: Could not verify backup completeness: ${error.message}`);
+                }
             } catch (error) {
                 console.warn(`  ⚠️  Warning: Could not backup attachments: ${error.message}`);
                 console.warn(`  Continuing with database backup only...`);

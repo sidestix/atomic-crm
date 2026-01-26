@@ -3,6 +3,28 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { confirm } from '@inquirer/prompts';
 
+const loadEnvFile = (envPath) => {
+    if (!fs.existsSync(envPath)) return;
+    const contents = fs.readFileSync(envPath, 'utf-8');
+    const lines = contents.split('\n');
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        const equalsIndex = trimmed.indexOf('=');
+        if (equalsIndex === -1) continue;
+        const key = trimmed.slice(0, equalsIndex).trim();
+        let value = trimmed.slice(equalsIndex + 1).trim();
+        if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+            value = value.slice(1, -1);
+        }
+        if (key && process.env[key] === undefined) {
+            process.env[key] = value;
+        }
+    }
+};
+
+loadEnvFile(path.resolve(process.cwd(), '.env.development'));
+
 // Get backup prefix or directory from command line argument
 // Accepts either: backup-2024-01-15-120000 or full path to backup directory
 const backupInput = process.argv[2];
@@ -306,6 +328,96 @@ END $$;
     );
     
     console.log('✓ Database restore completed');
+    console.log('Step 3b: Re-applying auth user triggers...');
+    const { stdout: duplicateSalesUserIds } = await execa(
+        'docker',
+        [
+            'exec',
+            '-i',
+            containerName,
+            'psql',
+            '--host=localhost',
+            '--port=5432',
+            '--username=postgres',
+            '--dbname=postgres',
+            '--tuples-only',
+            '--no-align',
+            '--command',
+            "SELECT user_id::text || '\\t' || COUNT(*)::text FROM public.sales WHERE user_id IS NOT NULL GROUP BY user_id HAVING COUNT(*) > 1 ORDER BY COUNT(*) DESC;",
+        ],
+        {
+            env: { ...process.env, PGPASSWORD: 'postgres' },
+        }
+    );
+    const duplicateUserIdRows = duplicateSalesUserIds
+        .split('\n')
+        .map((value) => value.trim())
+        .filter(Boolean);
+    if (duplicateUserIdRows.length > 0) {
+        throw new Error(
+            `Duplicate sales.user_id values detected (${duplicateUserIdRows.length}). Resolve duplicates before applying auth triggers.`
+        );
+    }
+    const applyTriggerSQL = `
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM pg_proc
+        WHERE proname IN ('handle_new_user', 'handle_update_user')
+          AND pronamespace = 'public'::regnamespace
+    ) THEN
+        DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+        DROP TRIGGER IF EXISTS on_auth_user_updated ON auth.users;
+        CREATE TRIGGER on_auth_user_created
+            AFTER INSERT ON auth.users
+            FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+        CREATE TRIGGER on_auth_user_updated
+            AFTER UPDATE ON auth.users
+            FOR EACH ROW EXECUTE PROCEDURE public.handle_update_user();
+    END IF;
+END $$;
+CREATE UNIQUE INDEX IF NOT EXISTS uq__sales__user_id ON public.sales (user_id);
+`;
+    await execa(
+        'docker',
+        [
+            'exec',
+            '-i',
+            containerName,
+            'psql',
+            '--host=localhost',
+            '--port=5432',
+            '--username=postgres',
+            '--dbname=postgres',
+        ],
+        {
+            input: applyTriggerSQL,
+            stdio: ['pipe', 'inherit', 'inherit'],
+            env: { ...process.env, PGPASSWORD: 'postgres' },
+        }
+    );
+    console.log('✓ Auth user triggers re-applied');
+    const { stdout: authUserTriggers } = await execa(
+        'docker',
+        [
+            'exec',
+            '-i',
+            containerName,
+            'psql',
+            '--host=localhost',
+            '--port=5432',
+            '--username=postgres',
+            '--dbname=postgres',
+            '--tuples-only',
+            '--no-align',
+            '--command',
+            "SELECT trigger_name FROM information_schema.triggers WHERE event_object_schema='auth' AND event_object_table='users' ORDER BY trigger_name;",
+        ],
+        {
+            env: { ...process.env, PGPASSWORD: 'postgres' },
+        }
+    );
     
     // Restore attachments if backup exists
     if (hasAttachments) {
@@ -348,40 +460,118 @@ END $$;
                     }
                 };
                 removeMetadataFiles(backupAttachmentsDir);
-
-                // Use docker cp for simple, reliable file copying
-                const progressIntervalMs = 5000;
-                let progressInFlight = false;
-                const logRestoreProgress = async () => {
-                    if (progressInFlight) return;
-                    progressInFlight = true;
-                    try {
-                        const { stdout: currentSizeStr } = await execa(
-                            'docker',
-                            ['exec', storageContainer, 'sh', '-c', `du -sb ${attachmentsPath} 2>/dev/null | cut -f1 || echo 0`]
-                        );
-                        const currentSize = parseInt(currentSizeStr.trim(), 10) || 0;
-                        const currentSizeGB = (currentSize / (1024 * 1024 * 1024)).toFixed(2);
-                        const percent = attachmentsSize > 0 ? ((currentSize / attachmentsSize) * 100).toFixed(1) : '0.0';
-                        console.log(`  Progress: ${percent}% (${currentSizeGB} GB / ${attachmentsSizeGB} GB)`);
-                    } catch (error) {
-                        // Ignore errors in progress monitoring
-                    } finally {
-                        progressInFlight = false;
-                    }
-                };
-                const progressTimer = setInterval(logRestoreProgress, progressIntervalMs);
-                await logRestoreProgress();
-                try {
-                    await execa(
-                        'docker',
-                        ['cp', backupAttachmentsDir, `${storageContainer}:${attachmentsPath}`]
-                    );
-                } finally {
-                    clearInterval(progressTimer);
+                const supabaseUrlRaw = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+                const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+                if (!supabaseUrlRaw || !serviceRoleKey) {
+                    throw new Error('SUPABASE_URL (or VITE_SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY are required to restore attachments via API.');
                 }
-                
-                console.log('✓ Attachments restore completed');
+                const supabaseUrl = supabaseUrlRaw.replace(/\/$/, '');
+                let supabaseHost = null;
+                try {
+                    supabaseHost = new URL(supabaseUrl).host;
+                } catch (error) {
+                    supabaseHost = null;
+                }
+                const attachmentsFiles = [];
+                const findFirstFile = (dir) => {
+                    const entries = fs.readdirSync(dir);
+                    for (const entry of entries) {
+                        const fullPath = path.join(dir, entry);
+                        const stats = fs.statSync(fullPath);
+                        if (stats.isDirectory()) {
+                            const nested = findFirstFile(fullPath);
+                            if (nested) return nested;
+                        } else if (!entry.startsWith('._') && entry !== '.DS_Store') {
+                            return fullPath;
+                        }
+                    }
+                    return null;
+                };
+                const entries = fs.readdirSync(backupAttachmentsDir);
+                let directoryEntryCount = 0;
+                let fileEntryCount = 0;
+                const sampleMappings = [];
+                for (const entry of entries) {
+                    if (entry.startsWith('._') || entry === '.DS_Store') {
+                        continue;
+                    }
+                    const fullPath = path.join(backupAttachmentsDir, entry);
+                    const stats = fs.statSync(fullPath);
+                    if (stats.isDirectory()) {
+                        directoryEntryCount += 1;
+                        const filePath = findFirstFile(fullPath);
+                        if (filePath) {
+                            attachmentsFiles.push({ fullPath: filePath, relativePath: entry });
+                            if (sampleMappings.length < 3) {
+                                sampleMappings.push({ objectName: entry });
+                            }
+                        }
+                    } else {
+                        fileEntryCount += 1;
+                        attachmentsFiles.push({ fullPath, relativePath: entry });
+                        if (sampleMappings.length < 3) {
+                            sampleMappings.push({ objectName: entry });
+                        }
+                    }
+                }
+                const mimeTypes = {
+                    '.pdf': 'application/pdf',
+                    '.jpg': 'image/jpeg',
+                    '.jpeg': 'image/jpeg',
+                    '.png': 'image/png',
+                    '.gif': 'image/gif',
+                    '.webp': 'image/webp',
+                    '.svg': 'image/svg+xml',
+                    '.txt': 'text/plain',
+                    '.csv': 'text/csv',
+                    '.doc': 'application/msword',
+                    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    '.xls': 'application/vnd.ms-excel',
+                    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    '.rtf': 'application/rtf',
+                };
+                let uploadedCount = 0;
+                let failedCount = 0;
+                let failSampleCount = 0;
+                for (const file of attachmentsFiles) {
+                    const relativePath = file.relativePath.split(path.sep).join('/');
+                    const encodedPath = relativePath.split('/').map(encodeURIComponent).join('/');
+                    const fileExt = path.extname(relativePath).toLowerCase();
+                    const contentType = mimeTypes[fileExt] || 'application/octet-stream';
+                    const uploadUrl = `${supabaseUrl}/storage/v1/object/attachments/${encodedPath}?upsert=true`;
+                    const uploadResponse = await fetch(uploadUrl, {
+                        method: 'PUT',
+                        headers: {
+                            Authorization: `Bearer ${serviceRoleKey}`,
+                            apikey: serviceRoleKey,
+                            'Content-Type': contentType,
+                            'x-upsert': 'true',
+                        },
+                        body: fs.createReadStream(file.fullPath),
+                        duplex: 'half',
+                    });
+                    if (!uploadResponse.ok) {
+                        failedCount += 1;
+                        if (failSampleCount < 3) {
+                            let errorText = '';
+                            try {
+                                errorText = await uploadResponse.text();
+                            } catch (error) {
+                                errorText = '';
+                            }
+                            failSampleCount += 1;
+                        }
+                    } else {
+                        uploadedCount += 1;
+                    }
+                    if ((uploadedCount + failedCount) % 500 === 0) {
+                        console.log(`  Uploaded ${uploadedCount.toLocaleString()} files...`);
+                    }
+                }
+                if (failedCount > 0) {
+                    throw new Error(`Failed to upload ${failedCount} attachment(s).`);
+                }
+                console.log('✓ Attachments restore completed via API');
 
                 // Verify restore completeness by comparing file lists
                 console.log('  Verifying attachments restore completeness...');

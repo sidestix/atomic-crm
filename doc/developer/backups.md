@@ -155,8 +155,13 @@ The restore process follows the [official Supabase restore procedure](https://su
    - First restores roles
    - Then restores schema
    - Finally restores data (with triggers disabled to prevent conflicts)
-5. Restores attachments if backup exists
+5. Restores attachments if backup exists (via the Storage API, which recreates metadata)
 6. Uses `--single-transaction` and `ON_ERROR_STOP=1` for safety
+
+**Attachments restore requirements**:
+- `SUPABASE_URL` (or `VITE_SUPABASE_URL`) must be set
+- `SUPABASE_SERVICE_ROLE_KEY` must be set (required for Storage API uploads)
+- The restore script auto-loads `.env.development` if present
 
 **Example**:
 ```bash
@@ -232,7 +237,8 @@ If attachments backup or restore fails:
 2. Check that the attachments directory exists in the container
 3. For large attachments (10GB+), the backup/restore process may take 10-30 minutes
 4. Ensure you have sufficient disk space for the backup
-5. If restore fails, attachments are stored in the backup directory and can be manually copied if needed
+5. Ensure `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are set (the restore uses Storage API uploads)
+6. If restore fails, attachments are stored in the backup directory and can be manually copied if needed
 
 ### "Backup files not found for prefix"
 

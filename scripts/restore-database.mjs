@@ -28,13 +28,67 @@ loadEnvFile(path.resolve(process.cwd(), '.env.development'));
 // Get backup prefix or directory from command line argument
 // Accepts either: backup-2024-01-15-120000 or full path to backup directory
 const backupInput = process.argv[2];
+const cliArgs = process.argv.slice(3);
+
+const parseArgs = (args) => {
+    const parsed = {
+        rewriteUrls: false,
+        rewriteFrom: [],
+        rewriteTo: null,
+    };
+    for (let i = 0; i < args.length; i += 1) {
+        const arg = args[i];
+        if (arg === '--rewrite-urls') {
+            parsed.rewriteUrls = true;
+            continue;
+        }
+        if (arg === '--rewrite-from') {
+            const value = args[i + 1];
+            if (value) {
+                parsed.rewriteFrom.push(...value.split(',').map((entry) => entry.trim()).filter(Boolean));
+                i += 1;
+            }
+            continue;
+        }
+        if (arg.startsWith('--rewrite-from=')) {
+            const value = arg.split('=')[1] ?? '';
+            parsed.rewriteFrom.push(...value.split(',').map((entry) => entry.trim()).filter(Boolean));
+            continue;
+        }
+        if (arg === '--rewrite-to') {
+            const value = args[i + 1];
+            if (value) {
+                parsed.rewriteTo = value.trim();
+                i += 1;
+            }
+            continue;
+        }
+        if (arg.startsWith('--rewrite-to=')) {
+            const value = arg.split('=')[1] ?? '';
+            parsed.rewriteTo = value.trim();
+        }
+    }
+    return parsed;
+};
+
+const rewriteOptions = parseArgs(cliArgs);
 
 if (!backupInput) {
     console.error('Error: Backup prefix or directory is required.');
     console.error('Usage: node scripts/restore-database.mjs <backup-prefix-or-directory>');
     console.error('Example: node scripts/restore-database.mjs backup-2024-01-15-120000');
     console.error('Or: node scripts/restore-database.mjs /path/to/backups/backup-2024-01-15-120000');
+    console.error('Optional URL rewrite:');
+    console.error('  --rewrite-urls --rewrite-from=http://127.0.0.1:54321 --rewrite-to=http://192.168.1.97:54321');
     process.exit(1);
+}
+
+if (rewriteOptions.rewriteUrls) {
+    if (rewriteOptions.rewriteFrom.length === 0 || !rewriteOptions.rewriteTo) {
+        console.error('Error: --rewrite-urls requires --rewrite-from and --rewrite-to.');
+        console.error('Example: --rewrite-urls --rewrite-from=http://127.0.0.1:54321 --rewrite-to=http://192.168.1.97:54321');
+        process.exit(1);
+    }
 }
 
 // Determine backup directory and prefix
@@ -120,6 +174,105 @@ const getDirSize = (dirPath) => {
     return totalSize;
 };
 
+const escapeSqlLiteral = (value) => value.replace(/'/g, "''");
+
+const buildRewriteUrlsSQL = (fromValue, toValue) => {
+    const escapedFrom = escapeSqlLiteral(fromValue);
+    const escapedTo = escapeSqlLiteral(toValue);
+    return `
+DO $$
+DECLARE v_count integer;
+BEGIN
+    UPDATE public."contactNotes"
+    SET attachments = (
+        SELECT array_agg(
+            CASE
+                WHEN elem ? 'src' AND elem->>'src' LIKE '${escapedFrom}%'
+                    THEN jsonb_set(elem, '{src}', to_jsonb(replace(elem->>'src', '${escapedFrom}', '${escapedTo}')))
+                ELSE elem
+            END
+        )
+        FROM unnest(attachments) AS elem
+    )
+    WHERE attachments IS NOT NULL
+      AND EXISTS (
+        SELECT 1 FROM unnest(attachments) AS elem
+        WHERE elem ? 'src' AND elem->>'src' LIKE '${escapedFrom}%'
+      );
+    GET DIAGNOSTICS v_count = ROW_COUNT;
+    RAISE NOTICE 'contactNotes.attachments updated: %', v_count;
+
+    UPDATE public."dealNotes"
+    SET attachments = (
+        SELECT array_agg(
+            CASE
+                WHEN elem ? 'src' AND elem->>'src' LIKE '${escapedFrom}%'
+                    THEN jsonb_set(elem, '{src}', to_jsonb(replace(elem->>'src', '${escapedFrom}', '${escapedTo}')))
+                ELSE elem
+            END
+        )
+        FROM unnest(attachments) AS elem
+    )
+    WHERE attachments IS NOT NULL
+      AND EXISTS (
+        SELECT 1 FROM unnest(attachments) AS elem
+        WHERE elem ? 'src' AND elem->>'src' LIKE '${escapedFrom}%'
+      );
+    GET DIAGNOSTICS v_count = ROW_COUNT;
+    RAISE NOTICE 'dealNotes.attachments updated: %', v_count;
+
+    UPDATE public."companyNotes"
+    SET attachments = (
+        SELECT array_agg(
+            CASE
+                WHEN elem ? 'src' AND elem->>'src' LIKE '${escapedFrom}%'
+                    THEN jsonb_set(elem, '{src}', to_jsonb(replace(elem->>'src', '${escapedFrom}', '${escapedTo}')))
+                ELSE elem
+            END
+        )
+        FROM unnest(attachments) AS elem
+    )
+    WHERE attachments IS NOT NULL
+      AND EXISTS (
+        SELECT 1 FROM unnest(attachments) AS elem
+        WHERE elem ? 'src' AND elem->>'src' LIKE '${escapedFrom}%'
+      );
+    GET DIAGNOSTICS v_count = ROW_COUNT;
+    RAISE NOTICE 'companyNotes.attachments updated: %', v_count;
+
+    UPDATE public.companies
+    SET logo = CASE
+        WHEN logo ? 'src' AND logo->>'src' LIKE '${escapedFrom}%'
+            THEN jsonb_set(logo, '{src}', to_jsonb(replace(logo->>'src', '${escapedFrom}', '${escapedTo}')))
+        ELSE logo
+    END
+    WHERE logo ? 'src' AND logo->>'src' LIKE '${escapedFrom}%';
+    GET DIAGNOSTICS v_count = ROW_COUNT;
+    RAISE NOTICE 'companies.logo updated: %', v_count;
+
+    UPDATE public.contacts
+    SET avatar = CASE
+        WHEN avatar ? 'src' AND avatar->>'src' LIKE '${escapedFrom}%'
+            THEN jsonb_set(avatar, '{src}', to_jsonb(replace(avatar->>'src', '${escapedFrom}', '${escapedTo}')))
+        ELSE avatar
+    END
+    WHERE avatar ? 'src' AND avatar->>'src' LIKE '${escapedFrom}%';
+    GET DIAGNOSTICS v_count = ROW_COUNT;
+    RAISE NOTICE 'contacts.avatar updated: %', v_count;
+
+    UPDATE public.sales
+    SET avatar = CASE
+        WHEN avatar ? 'src' AND avatar->>'src' LIKE '${escapedFrom}%'
+            THEN jsonb_set(avatar, '{src}', to_jsonb(replace(avatar->>'src', '${escapedFrom}', '${escapedTo}')))
+        ELSE avatar
+    END
+    WHERE avatar ? 'src' AND avatar->>'src' LIKE '${escapedFrom}%';
+    GET DIAGNOSTICS v_count = ROW_COUNT;
+    RAISE NOTICE 'sales.avatar updated: %', v_count;
+END $$;
+`;
+};
+
 // Get file stats for display
 const rolesStats = fs.statSync(rolesPath);
 const schemaStats = fs.statSync(schemaPath);
@@ -149,6 +302,9 @@ console.log('   1. Replace the entire database with the backup');
 console.log('   2. Replace all attachments with the backup');
 console.log('   3. All current data will be lost');
 console.log('   4. This cannot be undone!');
+if (rewriteOptions.rewriteUrls) {
+    console.log('   5. Rewrite stored file URLs');
+}
 console.log('');
 
 // Confirm before proceeding
@@ -418,6 +574,80 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq__sales__user_id ON public.sales (user_id);
             env: { ...process.env, PGPASSWORD: 'postgres' },
         }
     );
+
+    console.log('Step 3c: Resetting sequences...');
+    const resetSequencesSQL = `
+DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN
+    SELECT
+      n.nspname AS schema_name,
+      c.relname AS table_name,
+      a.attname AS column_name,
+      pg_get_serial_sequence(format('%I.%I', n.nspname, c.relname), a.attname) AS seq_name
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    JOIN pg_attribute a ON a.attrelid = c.oid
+    LEFT JOIN pg_attrdef ad ON ad.adrelid = c.oid AND ad.adnum = a.attnum
+    WHERE c.relkind = 'r'
+      AND n.nspname = 'public'
+      AND a.attnum > 0
+      AND (a.attidentity IN ('a', 'd') OR ad.adrelid IS NOT NULL)
+      AND pg_get_serial_sequence(format('%I.%I', n.nspname, c.relname), a.attname) IS NOT NULL
+  LOOP
+    EXECUTE format(
+      'SELECT setval(%L, COALESCE((SELECT MAX(%I) FROM %I.%I), 1), true);',
+      r.seq_name, r.column_name, r.schema_name, r.table_name
+    );
+  END LOOP;
+END $$;
+`;
+    await execa(
+        'docker',
+        [
+            'exec',
+            '-i',
+            containerName,
+            'psql',
+            '--host=localhost',
+            '--port=5432',
+            '--username=postgres',
+            '--dbname=postgres',
+        ],
+        {
+            input: resetSequencesSQL,
+            stdio: ['pipe', 'inherit', 'inherit'],
+            env: { ...process.env, PGPASSWORD: 'postgres' },
+        }
+    );
+    console.log('✓ Sequences reset');
+
+    if (rewriteOptions.rewriteUrls) {
+        for (const fromValue of rewriteOptions.rewriteFrom) {
+            console.log(`Step 3d: Rewriting stored file URLs (${fromValue} -> ${rewriteOptions.rewriteTo})...`);
+            const rewriteUrlsSQL = buildRewriteUrlsSQL(fromValue, rewriteOptions.rewriteTo);
+            await execa(
+                'docker',
+                [
+                    'exec',
+                    '-i',
+                    containerName,
+                    'psql',
+                    '--host=localhost',
+                    '--port=5432',
+                    '--username=postgres',
+                    '--dbname=postgres',
+                ],
+                {
+                    input: rewriteUrlsSQL,
+                    stdio: ['pipe', 'inherit', 'inherit'],
+                    env: { ...process.env, PGPASSWORD: 'postgres' },
+                }
+            );
+            console.log('✓ URL rewrite complete');
+        }
+    }
     
     // Restore attachments if backup exists
     if (hasAttachments) {

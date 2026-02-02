@@ -35,3 +35,5 @@ dist/
 .env
 *storybook.log
 .env.development
+supabase/config.toml
+supabase/signing_key.json

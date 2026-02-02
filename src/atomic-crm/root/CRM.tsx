@@ -4,7 +4,7 @@ import { SetPasswordPage } from "@/components/supabase/set-password-page";
 import type { AuthProvider, DataProvider } from "ra-core";
 import { CustomRoutes, localStorageStore, Resource } from "ra-core";
 import { useEffect } from "react";
-import { Route } from "react-router";
+import { Navigate, Route } from "react-router";
 import companies from "../companies";
 import contacts from "../contacts";
 import { Dashboard } from "../dashboard/Dashboard";
@@ -150,6 +150,7 @@ export const CRM = ({
         </CustomRoutes>
 
         <CustomRoutes>
+          <Route path="/" element={<Navigate to="/search" replace />} />
           <Route path={SettingsPage.path} element={<SettingsPage />} />
           <Route path="/search" element={<GlobalSearchPage />} />
         </CustomRoutes>

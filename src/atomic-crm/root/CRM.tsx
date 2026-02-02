@@ -151,6 +151,7 @@ export const CRM = ({
 
         <CustomRoutes>
           <Route path="/" element={<Navigate to="/search" replace />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path={SettingsPage.path} element={<SettingsPage />} />
           <Route path="/search" element={<GlobalSearchPage />} />
         </CustomRoutes>

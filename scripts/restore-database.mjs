@@ -335,8 +335,8 @@ try {
     }
 
     // Use docker exec to run psql inside the Supabase container
-    // Container name: supabase_db_atomic-crm-demo (from project_id in config.toml)
-    const containerName = 'supabase_db_atomic-crm-demo';
+    // Container name: supabase_db_atomic-crm(from project_id in config.toml)
+    const containerName = 'supabase_db_atomic-crm';
     console.log('✓ Database connection ready');
 
     // Drop all existing objects in schemas that will be restored

@@ -213,7 +213,7 @@ try {
 
     // Backup attachments
     console.log('\nBacking up attachments...');
-    const storageContainer = 'supabase_storage_atomic-crm-demo';
+    const storageContainer = 'supabase_storage_atomic-crm';
     const attachmentsPath = '/mnt/stub/stub/attachments';
     
     // Check if storage container is running

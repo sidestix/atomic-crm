@@ -154,6 +154,8 @@ for (const filePath of [rolesPath, schemaPath, dataPath]) {
 }
 
 // Helper function to calculate directory size
+let attachmentScanCount = 0;
+const attachmentScanLogEvery = 500;
 const getDirSize = (dirPath) => {
     if (!fs.existsSync(dirPath)) return 0;
     let totalSize = 0;
@@ -166,6 +168,10 @@ const getDirSize = (dirPath) => {
                 totalSize += getDirSize(filePath);
             } else {
                 totalSize += stats.size;
+                attachmentScanCount += 1;
+                if (attachmentScanCount % attachmentScanLogEvery === 0) {
+                    console.log(`  Scanning attachments: ${attachmentScanCount.toLocaleString()} files...`);
+                }
             }
         }
     } catch (error) {

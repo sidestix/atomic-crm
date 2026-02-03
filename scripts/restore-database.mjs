@@ -652,7 +652,7 @@ END $$;
     // Restore attachments if backup exists
     if (hasAttachments) {
         console.log('\nStep 4: Restoring attachments...');
-        const storageContainer = 'supabase_storage_atomic-crm-demo';
+        const storageContainer = 'supabase_storage_atomic-crm';
         const attachmentsPath = '/mnt/stub/stub/attachments';
         
         // Check if storage container is running

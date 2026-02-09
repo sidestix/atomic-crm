@@ -8,7 +8,29 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 if (!supabaseUrl) {
   throw new Error("Missing SUPABASE_URL env var");
 }
-const jwtIssuer = Deno.env.get("SB_JWT_ISSUER") ?? `${supabaseUrl}/auth/v1`;
+
+// Create base JWT issuer from SUPABASE_URL
+const baseJwtIssuer = Deno.env.get("SB_JWT_ISSUER") ?? `${supabaseUrl}/auth/v1`;
+
+// Support alternative Supabase URL for multi-IP access (e.g., Tailscale)
+// If SUPABASE_ALTERNATIVE_URL is set, also accept JWTs issued from that URL
+const createAlternativeIssuers = (): string[] => {
+  const alternativeUrl = Deno.env.get("SUPABASE_ALTERNATIVE_URL");
+  if (!alternativeUrl) {
+    return [];
+  }
+  
+  try {
+    const url = new URL(alternativeUrl);
+    return [`${url.toString()}/auth/v1`];
+  } catch {
+    // If URL parsing fails, skip alternative issuer
+    return [];
+  }
+};
+
+const jwtIssuer = baseJwtIssuer;
+const alternativeIssuers = createAlternativeIssuers();
 const jwtKeys = jose.createRemoteJWKSet(
   new URL(`${supabaseUrl}/auth/v1/.well-known/jwks.json`),
 );
@@ -45,9 +67,19 @@ const verifySupabaseJwt = async (req: Request) => {
     return createErrorResponse(401, "Missing authorization header");
   }
   const forwardedIssuer = getForwardedIssuer(req);
-  const issuers = forwardedIssuer ? [jwtIssuer, forwardedIssuer] : jwtIssuer;
+  
+  // Combine all possible issuers: base, alternatives, and forwarded
+  const allIssuers = [
+    jwtIssuer,
+    ...alternativeIssuers,
+    ...(forwardedIssuer ? [forwardedIssuer] : [])
+  ];
+  
+  // Remove duplicates
+  const uniqueIssuers = [...new Set(allIssuers)];
+  
   try {
-    await jose.jwtVerify(token, jwtKeys, { issuer: issuers });
+    await jose.jwtVerify(token, jwtKeys, { issuer: uniqueIssuers });
     return null;
   } catch (error) {
     console.error("jwt.verify.error", error);

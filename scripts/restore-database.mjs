@@ -79,14 +79,14 @@ if (!backupInput) {
     console.error('Example: node scripts/restore-database.mjs backup-2024-01-15-120000');
     console.error('Or: node scripts/restore-database.mjs /path/to/backups/backup-2024-01-15-120000');
     console.error('Optional URL rewrite:');
-    console.error('  --rewrite-urls --rewrite-from=http://127.0.0.1:54321 --rewrite-to=http://192.168.1.97:54321');
+    console.error('  --rewrite-urls --rewrite-from=http://127.0.0.1:54321 --rewrite-to=http://100.110.86.5:54321');
     process.exit(1);
 }
 
 if (rewriteOptions.rewriteUrls) {
     if (rewriteOptions.rewriteFrom.length === 0 || !rewriteOptions.rewriteTo) {
         console.error('Error: --rewrite-urls requires --rewrite-from and --rewrite-to.');
-        console.error('Example: --rewrite-urls --rewrite-from=http://127.0.0.1:54321 --rewrite-to=http://192.168.1.97:54321');
+        console.error('Example: --rewrite-urls --rewrite-from=http://127.0.0.1:54321 --rewrite-to=http://100.110.86.5:54321');
         process.exit(1);
     }
 }

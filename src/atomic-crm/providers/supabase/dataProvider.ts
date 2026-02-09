@@ -23,7 +23,7 @@ import { getActivityLog } from "../commons/activity";
 import { getCompanyAvatar } from "../commons/getCompanyAvatar";
 import { getContactAvatar } from "../commons/getContactAvatar";
 import { getIsInitialized } from "./authProvider";
-import { supabase, getSupabaseUrl } from "./supabase";
+import { supabase } from "./supabase";
 
 // Store previous related_contact_ids for bidirectional sync
 const previousRelatedContactIdsMap = new Map<Identifier, Identifier[]>();
@@ -36,7 +36,7 @@ if (import.meta.env.VITE_SUPABASE_ANON_KEY === undefined) {
 }
 
 const baseDataProvider = supabaseDataProvider({
-  instanceUrl: getSupabaseUrl(),
+  instanceUrl: import.meta.env.VITE_SUPABASE_URL,
   apiKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
   supabaseClient: supabase,
   sortOrder: "asc,desc.nullslast" as any,

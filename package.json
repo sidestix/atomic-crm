@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "vitest",
-    "dev": "vite --force --host",
+    "dev": "vite --force",
     "dev:demo": "vite --config vite.demo.config --force",
     "build": "tsc && vite build",
     "build:demo": "tsc && vite build --config vite.demo.config",

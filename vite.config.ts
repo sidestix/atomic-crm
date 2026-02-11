@@ -53,4 +53,7 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    host: "100.110.86.5",
+  },
 });

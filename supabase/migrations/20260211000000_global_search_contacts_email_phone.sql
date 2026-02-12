@@ -39,7 +39,7 @@ BEGIN
           WHERE phone_item->>'number' IS NOT NULL
         )
       ) as metadata,
-      -- Calculate relevance score based on full-text search rank and trigram similarity
+      -- Calculate relevance score (×3 so contacts compete with notes)
       (
         COALESCE(ts_rank(
           to_tsvector('english',
@@ -54,7 +54,7 @@ BEGIN
           COALESCE(contacts.first_name, '') || ' ' || COALESCE(contacts.last_name, ''),
           search_query
         ), 0) * 0.3
-      ) as relevance_score
+      ) * 3 AS relevance_score
     FROM contacts
     LEFT JOIN companies ON contacts.company_id = companies.id
     WHERE
@@ -107,14 +107,15 @@ BEGIN
         'note_date', "contactNotes".date,
         'attachment_count', COALESCE(array_length("contactNotes".attachments, 1), 0)
       ) as metadata,
-      -- Calculate relevance score for notes
+      -- Categorical relevance for notes: exact/full match = 1.0, similarity-only = 0.5 (ties → id DESC)
       (
-        COALESCE(ts_rank(
-          to_tsvector('english', COALESCE("contactNotes".text, '')),
-          plainto_tsquery('english', search_query)
-        ), 0) * 0.8 +
-        COALESCE(similarity(COALESCE("contactNotes".text, ''), search_query), 0) * 0.2
-      ) as relevance_score
+        CASE
+          WHEN to_tsvector('english', COALESCE("contactNotes".text, '')) @@ plainto_tsquery('english', search_query)
+            OR LOWER(COALESCE("contactNotes".text, '')) LIKE '%' || LOWER(search_query) || '%'
+          THEN 1.0
+          ELSE 0.5
+        END
+      )::double precision AS relevance_score
     FROM "contactNotes"
     LEFT JOIN contacts ON "contactNotes".contact_id = contacts.id
     WHERE
@@ -140,14 +141,15 @@ BEGIN
         'note_date', "companyNotes".date,
         'attachment_count', COALESCE(array_length("companyNotes".attachments, 1), 0)
       ) as metadata,
-      -- Calculate relevance score for notes
+      -- Categorical relevance for notes: exact/full match = 1.0, similarity-only = 0.5 (ties → id DESC)
       (
-        COALESCE(ts_rank(
-          to_tsvector('english', COALESCE("companyNotes".text, '')),
-          plainto_tsquery('english', search_query)
-        ), 0) * 0.8 +
-        COALESCE(similarity(COALESCE("companyNotes".text, ''), search_query), 0) * 0.2
-      ) as relevance_score
+        CASE
+          WHEN to_tsvector('english', COALESCE("companyNotes".text, '')) @@ plainto_tsquery('english', search_query)
+            OR LOWER(COALESCE("companyNotes".text, '')) LIKE '%' || LOWER(search_query) || '%'
+          THEN 1.0
+          ELSE 0.5
+        END
+      )::double precision AS relevance_score
     FROM "companyNotes"
     LEFT JOIN companies ON "companyNotes".company_id = companies.id
     WHERE
@@ -177,7 +179,7 @@ BEGIN
           WHERE c.company_id = companies.id
         )
       ) as metadata,
-      -- Calculate relevance score for companies
+      -- Calculate relevance score (×3 so companies compete with notes)
       (
         COALESCE(ts_rank(
           to_tsvector('english',
@@ -190,7 +192,7 @@ BEGIN
           plainto_tsquery('english', search_query)
         ), 0) * 0.7 +
         COALESCE(similarity(COALESCE(companies.name, ''), search_query), 0) * 0.3
-      ) as relevance_score
+      ) * 3 AS relevance_score
     FROM companies
     WHERE
       to_tsvector('english',

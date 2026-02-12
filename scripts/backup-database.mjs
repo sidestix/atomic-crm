@@ -211,6 +211,39 @@ try {
     fs.writeFileSync(dataPath, filteredLines.join('\n'), 'utf-8');
     console.log(`✓ Filtered out ${systemTablesToExclude.length} Supabase system table(s)`);
 
+    // Dump applied migration versions so restore can sync migration history
+    const dbContainerName = 'supabase_db_atomic-crm';
+    const migrationsPath = path.join(BACKUP_DIR, `${backupPrefix}-applied-migrations.txt`);
+    try {
+        console.log('Dumping applied migrations...');
+        const { stdout: migrationsOutput } = await execa(
+            'docker',
+            [
+                'exec',
+                dbContainerName,
+                'psql',
+                '--host=localhost',
+                '--port=5432',
+                '--username=postgres',
+                '--dbname=postgres',
+                '-t',
+                '-A',
+                '-c',
+                'SELECT version FROM supabase_migrations.schema_migrations ORDER BY version;',
+            ],
+            { env: { ...process.env, PGPASSWORD: 'postgres' } }
+        );
+        const versions = migrationsOutput
+            .split('\n')
+            .map((v) => v.trim())
+            .filter(Boolean);
+        fs.writeFileSync(migrationsPath, versions.join('\n'), 'utf-8');
+        console.log(`✓ Applied migrations saved (${versions.length} migrations)`);
+    } catch (migrationsError) {
+        console.warn(`⚠️  Could not dump applied migrations: ${migrationsError.message}`);
+        console.warn('  Restore will not sync migration history; run migration up after restore if needed.');
+    }
+
     // Backup attachments
     console.log('\nBacking up attachments...');
     const storageContainer = 'supabase_storage_atomic-crm';

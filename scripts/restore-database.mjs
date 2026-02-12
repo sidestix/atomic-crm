@@ -490,6 +490,43 @@ END $$;
     );
     
     console.log('✓ Database restore completed');
+
+    // Sync migration history to match backup so migration up only runs newer migrations
+    const migrationsPath = path.join(backupDir, `${backupPrefix}-applied-migrations.txt`);
+    if (fs.existsSync(migrationsPath)) {
+        console.log('Step 3a: Syncing migration history to backup...');
+        const content = fs.readFileSync(migrationsPath, 'utf-8');
+        const versions = content
+            .split('\n')
+            .map((v) => v.trim())
+            .filter(Boolean);
+        if (versions.length > 0) {
+            const escapedVersions = versions.map((v) => `'${v.replace(/'/g, "''")}'`);
+            const syncMigrationsSQL = `TRUNCATE supabase_migrations.schema_migrations;\nINSERT INTO supabase_migrations.schema_migrations (version) VALUES (${escapedVersions.join('), (')});\n`;
+            await execa(
+                'docker',
+                [
+                    'exec',
+                    '-i',
+                    containerName,
+                    'psql',
+                    '--host=localhost',
+                    '--port=5432',
+                    '--username=postgres',
+                    '--dbname=postgres',
+                ],
+                {
+                    input: syncMigrationsSQL,
+                    stdio: ['pipe', 'inherit', 'inherit'],
+                    env: { ...process.env, PGPASSWORD: 'postgres' },
+                }
+            );
+            console.log(`✓ Migration history synced to backup (${versions.length} migrations)`);
+        } else {
+            console.log('  No migration versions in file, skipping.');
+        }
+    }
+
     console.log('Step 3b: Re-applying auth user triggers...');
     const { stdout: duplicateSalesUserIds } = await execa(
         'docker',

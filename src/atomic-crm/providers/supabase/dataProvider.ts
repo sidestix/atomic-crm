@@ -140,7 +140,16 @@ const dataProviderWithCustomMethods = {
 
     if (!data || error) {
       console.error("salesCreate.error", error);
-      throw new Error("Failed to create account manager");
+      let message = "Failed to create account manager";
+      if (error?.context && typeof (error.context as Response).json === "function") {
+        try {
+          const body = await (error.context as Response).json();
+          if (body?.message) message = body.message;
+        } catch {
+          // ignore parse errors, use default message
+        }
+      }
+      throw new Error(message);
     }
 
     return data;

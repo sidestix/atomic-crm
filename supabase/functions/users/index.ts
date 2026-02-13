@@ -133,6 +133,33 @@ async function inviteUser(req: Request, currentUserSale: any) {
   }
 
   try {
+    // Wait for the database trigger to create the sales record
+    // The trigger handle_new_user() creates the sales record automatically
+    let retries = 10;
+    let saleExists = false;
+    
+    while (retries > 0 && !saleExists) {
+      const { data: salesData, error: salesError } = await supabaseAdmin
+        .from("sales")
+        .select("*")
+        .eq("user_id", data.user.id)
+        .single();
+      
+      if (salesData && !salesError) {
+        saleExists = true;
+        break;
+      }
+      
+      // Wait 100ms before retrying
+      await new Promise(resolve => setTimeout(resolve, 100));
+      retries--;
+    }
+
+    if (!saleExists) {
+      console.error(`Error: Sales record not created for user ${data.user.id} after retries`);
+      return createErrorResponse(500, "Internal Server Error: Sales record not found");
+    }
+
     await updateSaleDisabled(data.user.id, disabled);
     const sale = await updateSaleAdministrator(data.user.id, administrator);
 

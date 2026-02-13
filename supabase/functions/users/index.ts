@@ -119,22 +119,23 @@ async function inviteUser(req: Request, currentUserSale: any) {
     user_metadata: { first_name, last_name },
   });
 
-  const { error: emailError } =
-    await supabaseAdmin.auth.admin.inviteUserByEmail(email);
-
   if (!data?.user || userError) {
     console.error(`Error inviting user: user_error=${userError}`);
+
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/699b37ff-b3cb-499b-9846-9bbbaa584a64',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/index.ts:createUser branch',message:'createUser failed',data:{hasUserError:!!userError,errorMsg:userError?.message,errorCode:userError?.code},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+    // #endregion
 
     // Check if this is a duplicate email error - check multiple possible error formats
     const errorMessage = (userError?.message || userError?.error_description || userError?.msg || '').toLowerCase();
     const errorCode = userError?.code || userError?.status_code || '';
     const errorString = JSON.stringify(userError || {}).toLowerCase();
-    
-    const isDuplicateEmail = 
-      errorCode === 'email_exists' || // Supabase auth error code for duplicate email
+
+    const isDuplicateEmail =
+      errorCode === 'email_exists' ||
       errorCode === 'duplicate_email' ||
-      errorCode === '23505' || // PostgreSQL unique violation error code
-      errorMessage.includes('duplicate') || 
+      errorCode === '23505' ||
+      errorMessage.includes('duplicate') ||
       errorMessage.includes('already exists') ||
       errorMessage.includes('already registered') ||
       errorMessage.includes('unique constraint') ||
@@ -143,40 +144,26 @@ async function inviteUser(req: Request, currentUserSale: any) {
       errorString.includes('duplicate') ||
       errorString.includes('users_email_key') ||
       errorString.includes('email_exists');
-    
+
     if (isDuplicateEmail) {
       return createErrorResponse(409, "A user with this email address already exists");
     }
-    
+
     return createErrorResponse(500, "Internal Server Error");
   }
 
-  if (!data?.user || userError || emailError) {
-    console.error(`Error inviting user, email_error=${emailError}`);
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/699b37ff-b3cb-499b-9846-9bbbaa584a64',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/index.ts:before inviteUserByEmail',message:'user created, calling inviteUserByEmail',data:{userId:data.user?.id},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+  // #endregion
 
-    // Check if this is a duplicate email error - check multiple possible error formats
-    const errorMessage = (emailError?.message || emailError?.error_description || emailError?.msg || '').toLowerCase();
-    const errorCode = emailError?.code || emailError?.status_code || '';
-    const errorString = JSON.stringify(emailError || {}).toLowerCase();
-    
-    const isDuplicateEmail = 
-      errorCode === 'email_exists' || // Supabase auth error code for duplicate email
-      errorCode === 'duplicate_email' ||
-      errorCode === '23505' || // PostgreSQL unique violation error code
-      errorMessage.includes('duplicate') || 
-      errorMessage.includes('already exists') ||
-      errorMessage.includes('already registered') ||
-      errorMessage.includes('unique constraint') ||
-      errorMessage.includes('users_email_key') ||
-      errorMessage.includes('email already') ||
-      errorString.includes('duplicate') ||
-      errorString.includes('users_email_key') ||
-      errorString.includes('email_exists');
-    
-    if (isDuplicateEmail) {
-      return createErrorResponse(409, "A user with this email address already exists");
-    }
-    
+  const { error: emailError } =
+    await supabaseAdmin.auth.admin.inviteUserByEmail(email);
+
+  if (emailError) {
+    console.error(`Error inviting user, email_error=${emailError}`);
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/699b37ff-b3cb-499b-9846-9bbbaa584a64',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'users/index.ts:emailError',message:'inviteUserByEmail failed',data:{emailErrorMsg:emailError?.message,emailErrorCode:emailError?.code,emailErrorName:emailError?.name,emailErrorStatus:emailError?.status},timestamp:Date.now(),hypothesisId:'H2,H3,H4,H5'})}).catch(()=>{});
+    // #endregion
     return createErrorResponse(500, "Failed to send invitation mail");
   }
 

@@ -124,11 +124,59 @@ async function inviteUser(req: Request, currentUserSale: any) {
 
   if (!data?.user || userError) {
     console.error(`Error inviting user: user_error=${userError}`);
+
+    // Check if this is a duplicate email error - check multiple possible error formats
+    const errorMessage = (userError?.message || userError?.error_description || userError?.msg || '').toLowerCase();
+    const errorCode = userError?.code || userError?.status_code || '';
+    const errorString = JSON.stringify(userError || {}).toLowerCase();
+    
+    const isDuplicateEmail = 
+      errorCode === 'email_exists' || // Supabase auth error code for duplicate email
+      errorCode === 'duplicate_email' ||
+      errorCode === '23505' || // PostgreSQL unique violation error code
+      errorMessage.includes('duplicate') || 
+      errorMessage.includes('already exists') ||
+      errorMessage.includes('already registered') ||
+      errorMessage.includes('unique constraint') ||
+      errorMessage.includes('users_email_key') ||
+      errorMessage.includes('email already') ||
+      errorString.includes('duplicate') ||
+      errorString.includes('users_email_key') ||
+      errorString.includes('email_exists');
+    
+    if (isDuplicateEmail) {
+      return createErrorResponse(409, "A user with this email address already exists");
+    }
+    
     return createErrorResponse(500, "Internal Server Error");
   }
 
   if (!data?.user || userError || emailError) {
     console.error(`Error inviting user, email_error=${emailError}`);
+
+    // Check if this is a duplicate email error - check multiple possible error formats
+    const errorMessage = (emailError?.message || emailError?.error_description || emailError?.msg || '').toLowerCase();
+    const errorCode = emailError?.code || emailError?.status_code || '';
+    const errorString = JSON.stringify(emailError || {}).toLowerCase();
+    
+    const isDuplicateEmail = 
+      errorCode === 'email_exists' || // Supabase auth error code for duplicate email
+      errorCode === 'duplicate_email' ||
+      errorCode === '23505' || // PostgreSQL unique violation error code
+      errorMessage.includes('duplicate') || 
+      errorMessage.includes('already exists') ||
+      errorMessage.includes('already registered') ||
+      errorMessage.includes('unique constraint') ||
+      errorMessage.includes('users_email_key') ||
+      errorMessage.includes('email already') ||
+      errorString.includes('duplicate') ||
+      errorString.includes('users_email_key') ||
+      errorString.includes('email_exists');
+    
+    if (isDuplicateEmail) {
+      return createErrorResponse(409, "A user with this email address already exists");
+    }
+    
     return createErrorResponse(500, "Failed to send invitation mail");
   }
 

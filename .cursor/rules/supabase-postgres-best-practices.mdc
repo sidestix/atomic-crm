@@ -1,0 +1,16 @@
+---
+description: Use Supabase Postgres best practices when writing SQL, schema, or DB config
+globs: "**/*.sql,supabase/**/*,**/migrations/**"
+alwaysApply: false
+---
+
+# Supabase Postgres Best Practices
+
+When writing or reviewing SQL, schema definitions, migrations, or Supabase database config in this project, use the **Supabase Postgres best practices** skill installed at:
+
+**`.agents/skills/supabase-postgres-best-practices/`**
+
+- Read **`SKILL.md`** there for when to apply and category priorities (query performance, connection management, RLS, schema design, locking, etc.).
+- For specific topics (indexes, RLS, pooling, pagination, etc.), read the matching file under **`references/`** (e.g. `references/query-missing-indexes.md`, `references/security-rls-basics.md`).
+
+Follow those guidelines for query optimization, indexes, connection pooling, Row-Level Security, and schema design so SQL and Supabase config in this repo stay consistent with Supabase’s recommended practices.

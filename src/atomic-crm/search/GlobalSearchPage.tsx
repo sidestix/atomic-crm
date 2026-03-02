@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/useDebounce";
 import { Link } from "react-router";
 
+import { RelativeDate } from "../misc/RelativeDate";
+
 export interface SearchResult {
   id: string;
   type: "contact" | "note" | "company";
@@ -170,11 +172,15 @@ export const GlobalSearchPage = () => {
                                 {result.type}
                               </Badge>
                             </div>
-                            {result.subtitle && (
+                            {(result.type === "note" && result.metadata?.note_date ? (
+                              <p className="text-sm text-muted-foreground mb-2">
+                                <RelativeDate date={result.metadata.note_date} />
+                              </p>
+                            ) : result.subtitle ? (
                               <p className="text-sm text-muted-foreground mb-2">
                                 {highlightText(result.subtitle, query)}
                               </p>
-                            )}
+                            ) : null)}
                             <p className="text-sm text-muted-foreground">
                               {highlightText(result.snippet, query)}
                             </p>

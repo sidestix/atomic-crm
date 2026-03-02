@@ -447,8 +447,9 @@ try {
     };
     
     // Group files by backup prefix (backup-TIMESTAMP-*)
+    // Format: backup-YYYY-MM-DDTHH-MM-SS-* (T is not replaced in timestamp generation)
     for (const file of files) {
-        const match = file.match(/^(backup-\d{4}-\d{2}-\d{2}-\d{6})-(roles|schema|data)\.sql$/);
+        const match = file.match(/^(backup-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2})-(roles|schema|data)\.sql$/);
         if (match) {
             const prefix = match[1];
             if (!backupSets.has(prefix)) {
@@ -463,7 +464,7 @@ try {
     
     // Also check for attachment directories
     for (const file of files) {
-        const match = file.match(/^(backup-\d{4}-\d{2}-\d{2}-\d{6})-attachments$/);
+        const match = file.match(/^(backup-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2})-attachments$/);
         if (match) {
             const prefix = match[1];
             if (!backupSets.has(prefix)) {
@@ -480,28 +481,46 @@ try {
     
     // Delete backup sets older than retention period
     for (const [prefix, backupInfo] of backupSets.entries()) {
-        // Check the oldest file in the set to determine age
-        let oldestDate = null;
-        for (const file of backupInfo.files) {
-            const filePath = path.join(BACKUP_DIR, file);
-            if (fs.existsSync(filePath)) {
-                const fileStats = fs.statSync(filePath);
-                if (!oldestDate || fileStats.mtime < oldestDate) {
-                    oldestDate = fileStats.mtime;
+        // Parse the date from the filename prefix (backup-YYYY-MM-DDTHH-MM-SS)
+        const dateMatch = prefix.match(/^backup-(\d{4})-(\d{2})-(\d{2})T(\d{2})-(\d{2})-(\d{2})$/);
+        let backupDate = null;
+        
+        // Define attachmentsDir here so it's available in both branches and deletion block
+        const attachmentsDir = path.join(BACKUP_DIR, `${prefix}-attachments`);
+        
+        if (dateMatch) {
+            const [, year, month, day, hour, minute, second] = dateMatch;
+            backupDate = new Date(
+                parseInt(year),
+                parseInt(month) - 1, // Month is 0-indexed
+                parseInt(day),
+                parseInt(hour),
+                parseInt(minute),
+                parseInt(second)
+            );
+        } else {
+            // Fallback to file modification time if we can't parse the date
+            console.warn(`  Warning: Could not parse date from backup prefix: ${prefix}, using file mtime`);
+            let oldestDate = null;
+            for (const file of backupInfo.files) {
+                const filePath = path.join(BACKUP_DIR, file);
+                if (fs.existsSync(filePath)) {
+                    const fileStats = fs.statSync(filePath);
+                    if (!oldestDate || fileStats.mtime < oldestDate) {
+                        oldestDate = fileStats.mtime;
+                    }
                 }
             }
-        }
-        
-        // Check attachments directory if it exists
-        const attachmentsDir = path.join(BACKUP_DIR, `${prefix}-attachments`);
-        if (fs.existsSync(attachmentsDir)) {
-            const dirStats = fs.statSync(attachmentsDir);
-            if (!oldestDate || dirStats.mtime < oldestDate) {
-                oldestDate = dirStats.mtime;
+            if (fs.existsSync(attachmentsDir)) {
+                const dirStats = fs.statSync(attachmentsDir);
+                if (!oldestDate || dirStats.mtime < oldestDate) {
+                    oldestDate = dirStats.mtime;
+                }
             }
+            backupDate = oldestDate;
         }
         
-        if (oldestDate && oldestDate < cutoffDate) {
+        if (backupDate && backupDate < cutoffDate) {
             // Safety check: Don't delete if this backup is larger than current backup
             const backupSetSize = calculateBackupSetSize(prefix);
             if (backupSetSize > currentBackupSize) {
